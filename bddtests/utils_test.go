@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package utils
+package bddtests
 
 import (
 	"testing"
@@ -85,17 +85,4 @@ func TestResolveAll(t *testing.T) {
 	args, err := ResolveAll(vars, []string{"${var1}", "${var2}"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"val1", "val2"}, args)
-}
-
-func TestAsTuples(t *testing.T) {
-	args := []string{"k1", "v1", "k2", "v2", "k3", "v3"}
-	tuples, err := asTuples(args)
-	require.NoError(t, err)
-	require.Equal(t, 3, len(tuples))
-	require.Equal(t, "k1", tuples[0].v1)
-	require.Equal(t, "v1", tuples[0].v2)
-	require.Equal(t, "k2", tuples[1].v1)
-	require.Equal(t, "v2", tuples[1].v2)
-	require.Equal(t, "k3", tuples[2].v1)
-	require.Equal(t, "v3", tuples[2].v2)
 }

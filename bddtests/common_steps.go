@@ -33,7 +33,6 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	fabricCommon "github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
-	"github.com/trustbloc/fabric-peer-test-lib/utils"
 )
 
 // CommonSteps contain BDDContext
@@ -333,7 +332,7 @@ func addRetryCode(codes map[status.Group][]status.Code, group status.Group, code
 func (d *CommonSteps) queryCConOrg(ccID, args, orgIDs, channelID string) error {
 	queryValue = ""
 
-	argArr, err := utils.ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAll(vars, strings.Split(args, ","))
 	if err != nil {
 		return err
 	}
@@ -359,7 +358,7 @@ func (d *CommonSteps) queryCConSinglePeerInOrg(ccID, args, orgIDs, channelID str
 
 	logger.Infof("Querying peer [%s]...", targetPeer.Config.URL)
 
-	argArr, err := utils.ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAll(vars, strings.Split(args, ","))
 	if err != nil {
 		return err
 	}
@@ -385,7 +384,7 @@ func (d *CommonSteps) querySystemCC(ccID, args, orgID, channelID string) error {
 		serverHostOverride = str
 	}
 
-	argsArray, err := utils.ResolveAll(vars, strings.Split(args, ","))
+	argsArray, err := ResolveAll(vars, strings.Split(args, ","))
 	if err != nil {
 		return err
 	}
@@ -404,7 +403,7 @@ func (d *CommonSteps) queryCC(ccID, args, channelID string) error {
 
 	queryValue = ""
 
-	argArr, err := utils.ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAll(vars, strings.Split(args, ","))
 	if err != nil {
 		return err
 	}
