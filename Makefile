@@ -9,9 +9,12 @@
 GO_CMD ?= go
 GO111MODULE=on
 
-all: build
+all: build unit-test
 
 build:
 	$(GO_CMD) build ./...
 
-.PHONY: all build
+unit-test:
+	$(GO_CMD) test ./...
+
+.PHONY: all build unit-test
