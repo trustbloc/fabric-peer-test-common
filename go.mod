@@ -1,4 +1,4 @@
-module github.com/trustbloc/fabric-peer-test-lib
+module github.com/trustbloc/fabric-peer-test-common
 
 replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-20190507140713-ae22bce54dfb
 
