@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/common/selection/staticselection"
+	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/resmgmt"
@@ -32,6 +33,9 @@ var ADMIN = "admin"
 // USER type
 var USER = "user"
 
+// CollectionConfigCreator creates a collection config for the given channel
+type CollectionConfigCreator func(channelID string) (*common.CollectionConfig, error)
+
 // BDDContext ...
 type BDDContext struct {
 	composition            *Composition
@@ -41,7 +45,7 @@ type BDDContext struct {
 	ordererOrgID           string
 	peersByChannel         map[string][]*PeerConfig
 	orgsByChannel          map[string][]string
-	collectionConfigs      map[string]*CollectionConfig
+	collectionConfigs      map[string]CollectionConfigCreator
 	resmgmtClients         map[string]*resmgmt.Client
 	contexts               map[string]contextApi.Client
 	orgChannelClients      map[string]*channel.Client
@@ -65,23 +69,6 @@ type PeerConfig struct {
 
 type CollectionType string
 
-const (
-	CollectionType_Private   CollectionType = "private"
-	CollectionType_Transient CollectionType = "transient"
-	CollectionType_DCAS      CollectionType = "dcas"
-)
-
-// CollectionConfig contains the private data collection config
-type CollectionConfig struct {
-	Name              string
-	Type              CollectionType
-	Policy            string
-	RequiredPeerCount int32
-	MaxPeerCount      int32
-	BlocksToLive      uint64
-	TimeToLive        string
-}
-
 // NewBDDContext create new BDDContext
 func NewBDDContext(orgs []string, ordererOrgID string, clientConfigFilePath string, clientConfigFileName string, peersMspID map[string]string, systemCCPath, testCCPath string) (*BDDContext, error) {
 	instance := BDDContext{
@@ -90,7 +77,7 @@ func NewBDDContext(orgs []string, ordererOrgID string, clientConfigFilePath stri
 		contexts:             make(map[string]contextApi.Client),
 		orgsByChannel:        make(map[string][]string),
 		resmgmtClients:       make(map[string]*resmgmt.Client),
-		collectionConfigs:    make(map[string]*CollectionConfig),
+		collectionConfigs:    make(map[string]CollectionConfigCreator),
 		orgChannelClients:    make(map[string]*channel.Client),
 		createdChannels:      make(map[string]bool),
 		clientConfigFilePath: clientConfigFilePath,
@@ -175,7 +162,7 @@ func (b *BDDContext) AfterScenario(interface{}, error) {
 	b.contexts = make(map[string]contextApi.Client)
 	b.orgsByChannel = make(map[string][]string)
 	b.resmgmtClients = make(map[string]*resmgmt.Client)
-	b.collectionConfigs = make(map[string]*CollectionConfig)
+	b.collectionConfigs = make(map[string]CollectionConfigCreator)
 	b.orgChannelClients = make(map[string]*channel.Client)
 	b.createdChannels = make(map[string]bool)
 }
@@ -226,12 +213,19 @@ func (b *BDDContext) OrgsByChannel(channelID string) []string {
 	return b.orgsByChannel[channelID]
 }
 
-// CollectionConfig returns the private data collection configuration for the given collection name.
+// CollectionConfig returns the private data collection configuration creator for the given collection name.
 // If the collection configuration does not exist then nil is returned.
-func (b *BDDContext) CollectionConfig(coll string) *CollectionConfig {
+func (b *BDDContext) CollectionConfig(coll string) CollectionConfigCreator {
 	b.mutex.RLock()
 	defer b.mutex.RUnlock()
 	return b.collectionConfigs[coll]
+}
+
+// DefineCollectionConfig defines a new collection configuration
+func (b *BDDContext) DefineCollectionConfig(id string, creator CollectionConfigCreator) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	b.collectionConfigs[id] = creator
 }
 
 // ResMgmtClient returns the res mgmt client
@@ -382,57 +376,6 @@ func (b *BDDContext) addPeerConfigToChannel(pconfig *PeerConfig, channelID strin
 		}
 	}
 	b.orgsByChannel[channelID] = append(orgsForChannel, pconfig.OrgID)
-}
-
-// DefineCollectionConfig defines a new private data collection configuration
-func (b *BDDContext) DefineCollectionConfig(id, name, policy string, requiredPeerCount, maxPeerCount int32, blocksToLive uint64) *CollectionConfig {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	config := &CollectionConfig{
-		Name:              name,
-		Type:              CollectionType_Private,
-		Policy:            policy,
-		RequiredPeerCount: requiredPeerCount,
-		MaxPeerCount:      maxPeerCount,
-		BlocksToLive:      blocksToLive,
-	}
-	b.collectionConfigs[id] = config
-	return config
-}
-
-// DefineTransientCollectionConfig defines a new transient data collection configuration
-func (b *BDDContext) DefineTransientCollectionConfig(id, name, policy string, requiredPeerCount, maxPeerCount int32, timeToLive string) *CollectionConfig {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	config := &CollectionConfig{
-		Name:              name,
-		Type:              CollectionType_Transient,
-		Policy:            policy,
-		RequiredPeerCount: requiredPeerCount,
-		MaxPeerCount:      maxPeerCount,
-		TimeToLive:        timeToLive,
-	}
-	b.collectionConfigs[id] = config
-	return config
-}
-
-// DefineDCASCollectionConfig defines a new transient data collection configuration
-func (b *BDDContext) DefineDCASCollectionConfig(id, name, policy string, requiredPeerCount, maxPeerCount int32, timeToLive string) *CollectionConfig {
-	b.mutex.Lock()
-	defer b.mutex.Unlock()
-
-	config := &CollectionConfig{
-		Name:              name,
-		Type:              CollectionType_DCAS,
-		Policy:            policy,
-		RequiredPeerCount: requiredPeerCount,
-		MaxPeerCount:      maxPeerCount,
-		TimeToLive:        timeToLive,
-	}
-	b.collectionConfigs[id] = config
-	return config
 }
 
 func (b *BDDContext) populateChannelPeers() {
