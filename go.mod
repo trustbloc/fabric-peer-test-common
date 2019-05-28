@@ -4,7 +4,7 @@ replace github.com/hyperledger/fabric => github.com/trustbloc/fabric-mod v0.0.0-
 
 replace github.com/hyperledger/fabric/extensions => github.com/trustbloc/fabric-mod/extensions v0.0.0-20190507140713-ae22bce54dfb
 
-replace github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric => github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190507173756-f4404fb70f73
+replace github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric => github.com/trustbloc/fabric-sdk-go-ext/fabric v0.0.0-20190528182243-b95c24511993
 
 require (
 	github.com/DATA-DOG/godog v0.7.13

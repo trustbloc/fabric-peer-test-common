@@ -256,7 +256,11 @@ func (d *CommonSteps) joinPeersToChannel(channelID, orgID string, peersConfig []
 
 // InvokeCConOrg invoke cc on org
 func (d *CommonSteps) InvokeCConOrg(ccID, args, orgIDs, channelID string) error {
-	if _, err := d.InvokeCCWithArgs(ccID, channelID, d.OrgPeers(orgIDs, channelID), strings.Split(args, ","), nil); err != nil {
+	argArr, err := ResolveAll(vars, strings.Split(args, ","))
+	if err != nil {
+		return err
+	}
+	if _, err := d.InvokeCCWithArgs(ccID, channelID, d.OrgPeers(orgIDs, channelID), argArr, nil); err != nil {
 		return fmt.Errorf("InvokeCCWithArgs return error: %s", err)
 	}
 	return nil
@@ -264,7 +268,11 @@ func (d *CommonSteps) InvokeCConOrg(ccID, args, orgIDs, channelID string) error 
 
 // InvokeCC invoke cc
 func (d *CommonSteps) InvokeCC(ccID, args, channelID string) error {
-	if _, err := d.InvokeCCWithArgs(ccID, channelID, nil, strings.Split(args, ","), nil); err != nil {
+	argArr, err := ResolveAll(vars, strings.Split(args, ","))
+	if err != nil {
+		return err
+	}
+	if _, err := d.InvokeCCWithArgs(ccID, channelID, nil, argArr, nil); err != nil {
 		return fmt.Errorf("InvokeCC return error: %s", err)
 	}
 	return nil
@@ -551,7 +559,7 @@ func (d *CommonSteps) equalQueryValue(ccID string, value string) error {
 
 func (d *CommonSteps) setVariableFromCCResponse(key string) error {
 	logger.Infof("Saving value %s to variable %s", queryValue, key)
-	vars[key] = queryValue
+	SetVar(key, queryValue)
 	return nil
 }
 
@@ -708,11 +716,7 @@ func (d *CommonSteps) instantiateChaincodeWithOpts(ccType, ccID, ccPath, orgIDs,
 		// Define the private data collection policy config
 		for _, collName := range strings.Split(collectionNames, ",") {
 			logger.Infof("Configuring collection (%s) for CCID=%s", collName, ccID)
-			config := d.BDDContext.CollectionConfig(collName)
-			if config == nil {
-				return errors.Errorf("no collection config defined for collection [%s]", collName)
-			}
-			c, err := d.newCollectionConfig(channelID, config)
+			c, err := d.newCollectionConfig(channelID, collName)
 			if err != nil {
 				return err
 			}
@@ -780,11 +784,7 @@ func (d *CommonSteps) upgradeChaincodeWithOpts(ccType, ccID, ccVersion, ccPath, 
 		// Define the private data collection policy config
 		for _, collName := range strings.Split(collectionNames, ",") {
 			logger.Infof("Configuring collection (%s) for CCID=%s", collName, ccID)
-			config := d.BDDContext.CollectionConfig(collName)
-			if config == nil {
-				return errors.Errorf("no collection config defined for collection [%s]", collName)
-			}
-			c, err := d.newCollectionConfig(channelID, config)
+			c, err := d.newCollectionConfig(channelID, collName)
 			if err != nil {
 				return err
 			}
@@ -872,11 +872,7 @@ func (d *CommonSteps) deployChaincodeToOrg(ccType, ccID, ccPath, orgIDs, channel
 		// Define the private data collection policy config
 		for _, collName := range strings.Split(collectionNames, ",") {
 			logger.Infof("Configuring collection (%s) for CCID=%s", collName, ccID)
-			config := d.BDDContext.CollectionConfig(collName)
-			if config == nil {
-				return errors.Errorf("no collection config defined for collection [%s]", collName)
-			}
-			c, err := d.newCollectionConfig(channelID, config)
+			c, err := d.newCollectionConfig(channelID, collName)
 			if err != nil {
 				return err
 			}
@@ -899,24 +895,7 @@ func (d *CommonSteps) deployChaincodeToOrg(ccType, ccID, ccPath, orgIDs, channel
 }
 
 func (d *CommonSteps) newChaincodePolicy(ccPolicy, channelID string) (*fabricCommon.SignaturePolicyEnvelope, error) {
-	if ccPolicy != "" {
-		// Create a signature policy from the policy expression passed in
-		return newPolicy(ccPolicy)
-	}
-
-	netwkConfig := d.BDDContext.clientConfig.NetworkConfig()
-
-	// Default policy is 'signed by any member' for all known orgs
-	var mspIDs []string
-	for _, orgID := range d.BDDContext.OrgsByChannel(channelID) {
-		orgConfig, ok := netwkConfig.Organizations[strings.ToLower(orgID)]
-		if !ok {
-			return nil, errors.Errorf("org config not found for org ID %s", orgID)
-		}
-		mspIDs = append(mspIDs, orgConfig.MSPID)
-	}
-	logger.Infof("Returning SignedByAnyMember policy for MSPs %s", mspIDs)
-	return cauthdsl.SignedByAnyMember(mspIDs), nil
+	return NewChaincodePolicy(d.BDDContext, ccPolicy, channelID)
 }
 
 //OrgPeers return array of PeerConfig
@@ -959,41 +938,41 @@ func (d *CommonSteps) warmUpCConOrg(ccID, orgIDs, channelID string) error {
 
 func (d *CommonSteps) defineCollectionConfig(id, collection, policy string, requiredPeerCount int, maxPeerCount int, blocksToLive int) error {
 	logger.Infof("Defining collection config [%s] for collection [%s] - policy=[%s], requiredPeerCount=[%d], maxPeerCount=[%d], blocksToLive=[%d]", id, collection, policy, requiredPeerCount, maxPeerCount, blocksToLive)
-	d.BDDContext.DefineCollectionConfig(id, collection, policy, int32(requiredPeerCount), int32(maxPeerCount), uint64(blocksToLive))
+	d.DefineCollectionConfig(id, collection, policy, int32(requiredPeerCount), int32(maxPeerCount), uint64(blocksToLive))
 	return nil
 }
 
-func (d *CommonSteps) defineTransientCollectionConfig(id, collection, policy string, requiredPeerCount int, maxPeerCount int, timeToLive string) error {
-	logger.Infof("Defining transient collection config [%s] for collection [%s] - policy=[%s], requiredPeerCount=[%d], maxPeerCount=[%d], timeToLive=[%s]", id, collection, policy, requiredPeerCount, maxPeerCount, timeToLive)
-	d.BDDContext.DefineTransientCollectionConfig(id, collection, policy, int32(requiredPeerCount), int32(maxPeerCount), timeToLive)
-	return nil
-}
-
-func (d *CommonSteps) defineDCASCollectionConfig(id, collection, policy string, requiredPeerCount int, maxPeerCount int, timeToLive string) error {
-	logger.Infof("Defining DCAS collection config [%s] for collection [%s] - policy=[%s], requiredPeerCount=[%d], maxPeerCount=[%d], timeToLive=[%s]", id, collection, policy, requiredPeerCount, maxPeerCount, timeToLive)
-	d.BDDContext.DefineDCASCollectionConfig(id, collection, policy, int32(requiredPeerCount), int32(maxPeerCount), timeToLive)
-	return nil
-}
-
-func (d *CommonSteps) newCollectionConfig(channelID string, config *CollectionConfig) (*common.CollectionConfig, error) {
-	policy, err := d.newChaincodePolicy(config.Policy, channelID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error creating collection policy for collection [%s]", config.Name)
+func (d *CommonSteps) newCollectionConfig(channelID string, collName string) (*common.CollectionConfig, error) {
+	createCollectionConfig := d.BDDContext.CollectionConfig(collName)
+	if createCollectionConfig == nil {
+		return nil, errors.Errorf("no collection config defined for collection [%s]", collName)
 	}
+	return createCollectionConfig(channelID)
+}
 
-	switch config.Type {
-	case CollectionType_Transient:
-		logger.Infof("Creating transient collection config for collection [%s]", config.Name)
-		return newTransientCollectionConfig(config.Name, config.RequiredPeerCount, config.MaxPeerCount, config.TimeToLive, policy), nil
-	case CollectionType_DCAS:
-		logger.Infof("Creating DCAS collection config for collection [%s]", config.Name)
-		return newDCASCollectionConfig(config.Name, config.RequiredPeerCount, config.MaxPeerCount, config.TimeToLive, policy), nil
-	case CollectionType_Private:
-		fallthrough
-	default:
-		logger.Infof("Creating private collection config for collection [%s]", config.Name)
-		return newPrivateCollectionConfig(config.Name, config.RequiredPeerCount, config.MaxPeerCount, config.BlocksToLive, policy), nil
-	}
+// DefineCollectionConfig defines a new private data collection configuration
+func (d *CommonSteps) DefineCollectionConfig(id, name, policy string, requiredPeerCount, maxPeerCount int32, blocksToLive uint64) {
+	d.BDDContext.DefineCollectionConfig(id,
+		func(channelID string) (*common.CollectionConfig, error) {
+			sigPolicy, err := d.newChaincodePolicy(policy, channelID)
+			if err != nil {
+				return nil, errors.Wrapf(err, "error creating collection policy for collection [%s]", name)
+			}
+			return newPrivateCollectionConfig(name, requiredPeerCount, maxPeerCount, blocksToLive, sigPolicy), nil
+		},
+	)
+}
+
+// SetVar sets the value for the given variable
+func SetVar(varName, value string) {
+	vars[varName] = value
+}
+
+// GetVar gets the value for the given variable
+// Returns true if the variable exists; false otherwise
+func GetVar(varName string) (string, bool) {
+	value, ok := vars[varName]
+	return value, ok
 }
 
 func newPrivateCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, blocksToLive uint64, policy *common.SignaturePolicyEnvelope) *common.CollectionConfig {
@@ -1014,42 +993,26 @@ func newPrivateCollectionConfig(collName string, requiredPeerCount, maxPeerCount
 	}
 }
 
-func newTransientCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, timeToLive string, policy *common.SignaturePolicyEnvelope) *common.CollectionConfig {
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
-				Name:              collName,
-				Type:              common.CollectionType_TRANSIENT,
-				RequiredPeerCount: requiredPeerCount,
-				MaximumPeerCount:  maxPeerCount,
-				TimeToLive:        timeToLive,
-				MemberOrgsPolicy: &common.CollectionPolicyConfig{
-					Payload: &common.CollectionPolicyConfig_SignaturePolicy{
-						SignaturePolicy: policy,
-					},
-				},
-			},
-		},
+// NewChaincodePolicy parses the policy string and returns the chaincode policy
+func NewChaincodePolicy(bddCtx *BDDContext, ccPolicy, channelID string) (*fabricCommon.SignaturePolicyEnvelope, error) {
+	if ccPolicy != "" {
+		// Create a signature policy from the policy expression passed in
+		return newPolicy(ccPolicy)
 	}
-}
 
-func newDCASCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, timeToLive string, policy *common.SignaturePolicyEnvelope) *common.CollectionConfig {
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
-				Name:              collName,
-				Type:              common.CollectionType_DCAS,
-				RequiredPeerCount: requiredPeerCount,
-				MaximumPeerCount:  maxPeerCount,
-				TimeToLive:        timeToLive,
-				MemberOrgsPolicy: &common.CollectionPolicyConfig{
-					Payload: &common.CollectionPolicyConfig_SignaturePolicy{
-						SignaturePolicy: policy,
-					},
-				},
-			},
-		},
+	netwkConfig := bddCtx.clientConfig.NetworkConfig()
+
+	// Default policy is 'signed by any member' for all known orgs
+	var mspIDs []string
+	for _, orgID := range bddCtx.OrgsByChannel(channelID) {
+		orgConfig, ok := netwkConfig.Organizations[strings.ToLower(orgID)]
+		if !ok {
+			return nil, errors.Errorf("org config not found for org ID %s", orgID)
+		}
+		mspIDs = append(mspIDs, orgConfig.MSPID)
 	}
+	logger.Infof("Returning SignedByAnyMember policy for MSPs %s", mspIDs)
+	return cauthdsl.SignedByAnyMember(mspIDs), nil
 }
 
 // RegisterSteps register steps
@@ -1081,8 +1044,6 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client invokes chaincode "([^"]*)" with args "([^"]*)" on all peers in the "([^"]*)" org on the "([^"]*)" channel$`, d.InvokeCConOrg)
 	s.Step(`^client invokes chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel$`, d.InvokeCC)
 	s.Step(`^collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and blocksToLive=(\d+)$`, d.defineCollectionConfig)
-	s.Step(`^transient collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and timeToLive=([^"]*)$`, d.defineTransientCollectionConfig)
-	s.Step(`^DCAS collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and timeToLive=([^"]*)$`, d.defineDCASCollectionConfig)
 	s.Step(`^block (\d+) from the "([^"]*)" channel is displayed$`, d.displayBlockFromChannel)
 	s.Step(`^the last (\d+) blocks from the "([^"]*)" channel are displayed$`, d.displayBlocksFromChannel)
 	s.Step(`^the last block from the "([^"]*)" channel is displayed$`, d.displayLastBlockFromChannel)
