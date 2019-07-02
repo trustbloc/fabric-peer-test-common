@@ -256,7 +256,7 @@ func (d *CommonSteps) joinPeersToChannel(channelID, orgID string, peersConfig []
 
 // InvokeCConOrg invoke cc on org
 func (d *CommonSteps) InvokeCConOrg(ccID, args, orgIDs, channelID string) error {
-	argArr, err := ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAllVars(args)
 	if err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func (d *CommonSteps) InvokeCConOrg(ccID, args, orgIDs, channelID string) error 
 
 // InvokeCC invoke cc
 func (d *CommonSteps) InvokeCC(ccID, args, channelID string) error {
-	argArr, err := ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAllVars(args)
 	if err != nil {
 		return err
 	}
@@ -340,7 +340,7 @@ func addRetryCode(codes map[status.Group][]status.Code, group status.Group, code
 func (d *CommonSteps) queryCConOrg(ccID, args, orgIDs, channelID string) error {
 	queryValue = ""
 
-	argArr, err := ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAllVars(args)
 	if err != nil {
 		return err
 	}
@@ -366,7 +366,7 @@ func (d *CommonSteps) queryCConSinglePeerInOrg(ccID, args, orgIDs, channelID str
 
 	logger.Infof("Querying peer [%s]...", targetPeer.Config.URL)
 
-	argArr, err := ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAllVars(args)
 	if err != nil {
 		return err
 	}
@@ -392,7 +392,7 @@ func (d *CommonSteps) querySystemCC(ccID, args, orgID, channelID string) error {
 		serverHostOverride = str
 	}
 
-	argsArray, err := ResolveAll(vars, strings.Split(args, ","))
+	argsArray, err := ResolveAllVars(args)
 	if err != nil {
 		return err
 	}
@@ -411,7 +411,7 @@ func (d *CommonSteps) queryCC(ccID, args, channelID string) error {
 
 	queryValue = ""
 
-	argArr, err := ResolveAll(vars, strings.Split(args, ","))
+	argArr, err := ResolveAllVars(args)
 	if err != nil {
 		return err
 	}
@@ -973,6 +973,32 @@ func SetVar(varName, value string) {
 func GetVar(varName string) (string, bool) {
 	value, ok := vars[varName]
 	return value, ok
+}
+
+// ResolveAllVars returns a slice of strings from the given comma-separated string.
+// Each string is resolved for variables.
+// Resolve resolves all variables within the given arg
+//
+// Example 1: Simple variable
+// 	Given:
+// 		vars = {
+// 			"var1": "value1",
+// 			"var2": "value2",
+// 			}
+//	Then:
+//		"${var1}" = "value1"
+//		"X_${var1}_${var2} = "X_value1_value2
+//
+// Example 2: Array variable
+// 	Given:
+// 		vars = {
+// 			"arr1": "value1,value2,value3",
+// 			}
+//	Then:
+//		"${arr1[0]_arr1[1]_arr1[2]}" = "value1_value2_value3"
+//
+func ResolveAllVars(args string) ([]string, error) {
+	return ResolveAll(vars, strings.Split(args, ","))
 }
 
 func newPrivateCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, blocksToLive uint64, policy *common.SignaturePolicyEnvelope) *common.CollectionConfig {
