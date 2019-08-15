@@ -588,6 +588,18 @@ func (d *CommonSteps) upgradeChaincode(ccType, ccID, ccVersion, ccPath, channelI
 	return d.upgradeChaincodeWithOpts(ccType, ccID, ccVersion, ccPath, "", channelID, args, ccPolicy, collectionNames, false)
 }
 
+func (d *CommonSteps) upgradeChaincodeWithError(ccType, ccID, ccVersion, ccPath, channelID, args, ccPolicy, collectionNames, expectedError string) error {
+	logger.Infof("Preparing to instantiate chaincode [%s] from path [%s] on channel [%s] with args [%s] and CC policy [%s] and collectionPolicy [%s]. Expected error [%s]", ccID, ccPath, channelID, args, ccPolicy, collectionNames, expectedError)
+	err := d.upgradeChaincodeWithOpts(ccType, ccID, ccVersion, ccPath, "", channelID, args, ccPolicy, collectionNames, false)
+	if err == nil {
+		return errors.Errorf("expecting error [%s] but got no error", expectedError)
+	}
+	if !strings.Contains(err.Error(), expectedError) {
+		return errors.Errorf("expecting error [%s] but got [%s]", expectedError, err)
+	}
+	return nil
+}
+
 func (d *CommonSteps) instantiateChaincodeOnOrg(ccType, ccID, ccPath, orgIDs, channelID, args, ccPolicy, collectionNames string) error {
 	logger.Infof("Preparing to instantiate chaincode [%s] from path [%s] to orgs [%s] on channel [%s] with args [%s] and CC policy [%s] and collectionPolicy [%s]", ccID, ccPath, orgIDs, channelID, args, ccPolicy, collectionNames)
 	return d.instantiateChaincodeWithOpts(ccType, ccID, ccPath, orgIDs, channelID, args, ccPolicy, collectionNames, false)
@@ -1063,6 +1075,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^"([^"]*)" chaincode "([^"]*)" is instantiated from path "([^"]*)" on all peers in the "([^"]*)" org on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)"$`, d.instantiateChaincodeOnOrg)
 	s.Step(`^"([^"]*)" chaincode "([^"]*)" is instantiated from path "([^"]*)" on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)"$`, d.instantiateChaincode)
 	s.Step(`^"([^"]*)" chaincode "([^"]*)" is upgraded with version "([^"]*)" from path "([^"]*)" on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)"$`, d.upgradeChaincode)
+	s.Step(`^"([^"]*)" chaincode "([^"]*)" is upgraded with version "([^"]*)" from path "([^"]*)" on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)" then the error response should contain "([^"]*)"$`, d.upgradeChaincodeWithError)
 	s.Step(`^"([^"]*)" chaincode "([^"]*)" is deployed from path "([^"]*)" to all peers in the "([^"]*)" org on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)"$`, d.deployChaincodeToOrg)
 	s.Step(`^"([^"]*)" chaincode "([^"]*)" is deployed from path "([^"]*)" to all peers on the "([^"]*)" channel with args "([^"]*)" with endorsement policy "([^"]*)" with collection policy "([^"]*)"$`, d.deployChaincode)
 	s.Step(`^chaincode "([^"]*)" is warmed up on all peers in the "([^"]*)" org on the "([^"]*)" channel$`, d.warmUpCConOrg)
