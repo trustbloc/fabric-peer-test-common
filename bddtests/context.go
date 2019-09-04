@@ -330,6 +330,22 @@ func (b *BDDContext) PeerConfigForURL(url string) *PeerConfig {
 	return nil
 }
 
+// PeerConfigForID returns the peer config for the given peer ID or nil if not found
+func (b *BDDContext) PeerConfigForID(id string) *PeerConfig {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+
+	for _, pconfigs := range b.peersByChannel {
+		for _, pconfig := range pconfigs {
+			if pconfig.PeerID == id {
+				return pconfig
+			}
+		}
+	}
+	logger.Warnf("Peer config not found for ID [%s]", id)
+	return nil
+}
+
 // OrgIDForChannel returns a single org ID for the given channel or an error if
 // no orgs are configured for the channel
 func (b *BDDContext) OrgIDForChannel(channelID string) (string, error) {
