@@ -353,6 +353,61 @@ func (d *CommonSteps) queryCConOrg(ccID, args, orgIDs, channelID string) error {
 	return nil
 }
 
+func (d *CommonSteps) queryCConTargetPeers(ccID, args, peerIDs, channelID string) error {
+	queryValue = ""
+
+	if peerIDs == "" {
+		return errors.New("no target peers specified")
+	}
+
+	targetPeers, err := d.Peers(peerIDs)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Querying peers [%s]...", targetPeers)
+
+	argArr, err := ResolveAllVars(args)
+	if err != nil {
+		return err
+	}
+
+	queryValue, err = d.QueryCCWithArgs(false, ccID, channelID, argArr, nil, targetPeers...)
+	if err != nil {
+		return fmt.Errorf("QueryCCWithArgs return error: %s", err)
+	}
+	logger.Debugf("QueryCCWithArgs return value: [%s]", queryValue)
+	return nil
+}
+
+func (d *CommonSteps) invokeCConTargetPeers(ccID, args, peerIDs, channelID string) error {
+	queryValue = ""
+
+	if peerIDs == "" {
+		return errors.New("no target peers specified")
+	}
+
+	targetPeers, err := d.Peers(peerIDs)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("Invoking peers [%s]...", targetPeers)
+
+	argArr, err := ResolveAllVars(args)
+	if err != nil {
+		return err
+	}
+
+	resp, err := d.InvokeCCWithArgs(ccID, channelID, targetPeers, argArr, nil)
+	if err != nil {
+		return fmt.Errorf("InvokeCCWithArgs returned error: %s", err)
+	}
+	queryValue = string(resp.Payload)
+	logger.Debugf("InvokeCCWithArgs returned value: [%s]", queryValue)
+	return nil
+}
+
 func (d *CommonSteps) queryCConSinglePeerInOrg(ccID, args, orgIDs, channelID string) error {
 	queryValue = ""
 
@@ -928,6 +983,19 @@ func (d *CommonSteps) OrgPeers(orgIDs, channelID string) Peers {
 	return peers
 }
 
+// Peers returns the PeerConfigs for the given peer IDs
+func (d *CommonSteps) Peers(peerIDs string) (Peers, error) {
+	var peers []*PeerConfig
+	for _, id := range strings.Split(peerIDs, ",") {
+		peer := d.BDDContext.PeerConfigForID(id)
+		if peer == nil {
+			return nil, errors.Errorf("peer [%s] not found", id)
+		}
+		peers = append(peers, peer)
+	}
+	return peers, nil
+}
+
 func (d *CommonSteps) warmUpCC(ccID, channelID string) error {
 	logger.Infof("Warming up chaincode [%s] on channel [%s]", ccID, channelID)
 	return d.warmUpCConOrg(ccID, "", channelID)
@@ -1063,6 +1131,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^we wait (\d+) seconds$`, d.wait)
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on all peers in the "([^"]*)" org on the "([^"]*)" channel$`, d.queryCConOrg)
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on a single peer in the "([^"]*)" org on the "([^"]*)" channel$`, d.queryCConSinglePeerInOrg)
+	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)" on the "([^"]*)" channel$`, d.queryCConTargetPeers)
 	s.Step(`^client queries system chaincode "([^"]*)" with args "([^"]*)" on org "([^"]*)" peer on the "([^"]*)" channel$`, d.querySystemCC)
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel$`, d.queryCC)
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel then the error response should contain "([^"]*)"$`, d.queryCCWithError)
@@ -1082,6 +1151,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^chaincode "([^"]*)" is warmed up on all peers on the "([^"]*)" channel$`, d.warmUpCC)
 	s.Step(`^client invokes chaincode "([^"]*)" with args "([^"]*)" on all peers in the "([^"]*)" org on the "([^"]*)" channel$`, d.InvokeCConOrg)
 	s.Step(`^client invokes chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel$`, d.InvokeCC)
+	s.Step(`^client invokes chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)" on the "([^"]*)" channel$`, d.invokeCConTargetPeers)
 	s.Step(`^collection config "([^"]*)" is defined for collection "([^"]*)" as policy="([^"]*)", requiredPeerCount=(\d+), maxPeerCount=(\d+), and blocksToLive=(\d+)$`, d.defineCollectionConfig)
 	s.Step(`^block (\d+) from the "([^"]*)" channel is displayed$`, d.displayBlockFromChannel)
 	s.Step(`^the last (\d+) blocks from the "([^"]*)" channel are displayed$`, d.displayBlocksFromChannel)
