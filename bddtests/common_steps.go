@@ -33,6 +33,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	fabricCommon "github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/protos/common"
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 )
 
 // CommonSteps contain BDDContext
@@ -618,6 +619,45 @@ func (d *CommonSteps) setVariableFromCCResponse(key string) error {
 	return nil
 }
 
+func (d *CommonSteps) setJSONVariable(varName, value string) error {
+	// Validate the JSON
+	m := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(value), &m); err != nil {
+		return errors.WithMessagef(err, "invalid JSON: %s", value)
+	}
+	SetVar(varName, value)
+	return nil
+}
+
+func (d *CommonSteps) jsonPathOfCCResponseEquals(path, expected string) error {
+	r := gjson.Get(queryValue, path)
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Str)
+	if r.Str == expected {
+		return nil
+	}
+	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Str, expected)
+}
+
+func (d *CommonSteps) jsonPathOfCCHasNumItems(path string, expectedNum int) error {
+	r := gjson.Get(queryValue, path)
+	logger.Infof("Path [%s] of JSON %s resolves to %d items", path, queryValue, int(r.Num))
+	if int(r.Num) == expectedNum {
+		return nil
+	}
+	return fmt.Errorf("JSON path resolves to [%d] items which is not the expected number of items [%d]", int(r.Num), expectedNum)
+}
+
+func (d *CommonSteps) jsonPathOfCCResponseContains(path, expected string) error {
+	r := gjson.Get(queryValue, path)
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Raw)
+	for _, a := range r.Array() {
+		if a.Str == expected {
+			return nil
+		}
+	}
+	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Array(), expected)
+}
+
 func (d *CommonSteps) installChaincodeToAllPeers(ccType, ccID, ccPath string) error {
 	logger.Infof("Installing chaincode [%s] from path [%s] to all peers", ccID, ccPath)
 	return d.doInstallChaincodeToOrg(ccType, ccID, ccPath, "v1", "", "")
@@ -1157,4 +1197,8 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the last (\d+) blocks from the "([^"]*)" channel are displayed$`, d.displayBlocksFromChannel)
 	s.Step(`^the last block from the "([^"]*)" channel is displayed$`, d.displayLastBlockFromChannel)
 	s.Step(`^the response is saved to variable "([^"]*)"$`, d.setVariableFromCCResponse)
+	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
+	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfCCResponseEquals)
+	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfCCHasNumItems)
+	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfCCResponseContains)
 }

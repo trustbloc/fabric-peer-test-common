@@ -201,6 +201,12 @@ github.com/sykesm/zap-logfmt v0.0.1 h1:jRQAGbt95KHhr59ivNUXejlvQeRK87GJ9Q8aH+Ug3
 github.com/sykesm/zap-logfmt v0.0.1/go.mod h1:j2cfI8tLE9C98y0yq8aoNO7BNYfABnpFAHHYWCNnBAQ=
 github.com/syndtr/goleveldb v0.0.0-20180815032940-ae2bd5eed72d/go.mod h1:Z4AUp2Km+PwemOoO/VB5AOx9XSsIItzFjoJlOSiYmn0=
 github.com/tedsuo/ifrit v0.0.0-20180802180643-bea94bb476cc/go.mod h1:eyZnKCc955uh98WQvzOm0dgAeLnf2O0Rz0LPoC5ze+0=
+github.com/tidwall/gjson v1.3.2 h1:+7p3qQFaH3fOMXAJSrdZwGKcOO/lYdGS0HqGhPqDdTI=
+github.com/tidwall/gjson v1.3.2/go.mod h1:P256ACg0Mn+j1RXIDXoss50DeIABTYK1PULOJHhxOls=
+github.com/tidwall/match v1.0.1 h1:PnKP62LPNxHKTwvHHZZzdOAOCtsJTjo6dZLCwpKm5xc=
+github.com/tidwall/match v1.0.1/go.mod h1:LujAq0jyVjBy028G1WhWfIzbpQfMO8bBZ6Tyb0+pL9E=
+github.com/tidwall/pretty v1.0.0 h1:HsD+QiTn7sK6flMKIvNmpqz1qrpP3Ps6jOKIKMooyg4=
+github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/trustbloc/fabric-mod v0.0.0-20190507140713-ae22bce54dfb h1:GXb+evYUxrUsWAK7zJItNcTVt49v20eOCTiNR6A4HzY=
 github.com/trustbloc/fabric-mod v0.0.0-20190507140713-ae22bce54dfb/go.mod h1:y/yp/cF5M9+xddNmn6f24tz/PrDjgGCzOk5/0WCKLkU=
