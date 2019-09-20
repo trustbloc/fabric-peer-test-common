@@ -1083,6 +1083,21 @@ func (d *CommonSteps) DefineCollectionConfig(id, name, policy string, requiredPe
 	)
 }
 
+// ClearResponse clears the query response
+func ClearResponse() {
+	queryValue = ""
+}
+
+// GetResponse returns the most recent query response
+func GetResponse() string {
+	return queryValue
+}
+
+// SetResponse sets the query response
+func SetResponse(response string) {
+	queryValue = response
+}
+
 // SetVar sets the value for the given variable
 func SetVar(varName, value string) {
 	vars[varName] = value
