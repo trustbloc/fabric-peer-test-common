@@ -372,6 +372,26 @@ func (b *BDDContext) AddPeerConfigToChannel(pconfig *PeerConfig, channelID strin
 	b.addPeerConfigToChannel(pconfig, channelID)
 }
 
+// SetComposition sets the Docker composition in the context
+func (b *BDDContext) SetComposition(composition *Composition) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	if b.composition != nil {
+		panic("composition is already set")
+	}
+
+	b.composition = composition
+}
+
+// Composition returns the Docker composition
+func (b *BDDContext) Composition() *Composition {
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+
+	return b.composition
+}
+
 // addPeerConfigToChannel adds a peer to a channel
 func (b *BDDContext) addPeerConfigToChannel(pconfig *PeerConfig, channelID string) {
 	pconfigs := b.peersByChannel[channelID]

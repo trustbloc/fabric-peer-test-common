@@ -670,7 +670,7 @@ func (d *CommonSteps) installChaincodeToAllPeersWithVersion(ccType, ccID, ccVers
 
 func (d *CommonSteps) installChaincodeToAllPeersExcept(ccType, ccID, ccPath, blackListRegex string) error {
 	logger.Infof("Installing chaincode [%s] from path [%s] to all peers except [%s]", ccID, ccPath, blackListRegex)
-	return d.doInstallChaincodeToOrg(ccType, ccID, ccPath, "", "v1", blackListRegex)
+	return d.doInstallChaincodeToOrg(ccType, ccID, ccPath, "v1", "", blackListRegex)
 }
 
 func (d *CommonSteps) instantiateChaincode(ccType, ccID, ccPath, channelID, args, ccPolicy, collectionNames string) error {
@@ -779,8 +779,13 @@ func getLocalTargets(context *BDDContext, orgID string, blackListRegex string) (
 
 	var peerURLs []string
 	for _, peer := range peers {
-		if blacklistedPeersRegex != nil && blacklistedPeersRegex.MatchString(peer.URL()) {
-			logger.Infof("Not returning local peer [%s] since it is blacklisted", peer.URL())
+		peerConfig := context.PeerConfigForURL(peer.URL())
+		if peerConfig == nil {
+			logger.Warnf("Peer config not found for URL [%s]", peer.URL())
+			continue
+		}
+		if blacklistedPeersRegex != nil && blacklistedPeersRegex.MatchString(peerConfig.PeerID) {
+			logger.Infof("Not returning local peer [%s] since it is blacklisted", peerConfig.PeerID)
 			continue
 		}
 		peerURLs = append(peerURLs, peer.URL())

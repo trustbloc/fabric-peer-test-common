@@ -23,29 +23,42 @@ type Composition struct {
 	dockerClient  *docker.Client
 	apiContainers []docker.APIContainers
 
+	dir              string
 	composeFilesYaml string
 	projectName      string
 	dockerHelper     DockerHelper
 }
 
-// NewComposition create a new Composition specifying the project name (for isolation) and the compose files.
-func NewComposition(projectName string, composeFilesYaml string, dir string) (composition *Composition, err error) {
-	errRetFunc := func() error {
-		return fmt.Errorf("Error creating new composition '%s' using compose yaml '%s':  %s", projectName, composeFilesYaml, err)
+// NewDockerCompose create a new Composition specifying the project name (for isolation) and the compose files.
+func NewDockerCompose(projectName, composeFilesYaml string, dir string) (*Composition, error) {
+	errRetFunc := func(err error) error {
+		return fmt.Errorf("Error creating new composition using compose yaml '%s':  %s", composeFilesYaml, err)
 	}
 
 	endpoint := "unix:///var/run/docker.sock"
-	composition = &Composition{composeFilesYaml: composeFilesYaml, projectName: projectName}
+	composition := &Composition{composeFilesYaml: composeFilesYaml, projectName: projectName, dir: dir}
+
+	var err error
 	if composition.dockerClient, err = docker.NewClient(endpoint); err != nil {
-		return nil, errRetFunc()
-	}
-	if _, err = composition.issueCommand([]string{"up", "--force-recreate", "-d"}, dir); err != nil {
-		return nil, errRetFunc()
+		return nil, errRetFunc(err)
 	}
 	if composition.dockerHelper, err = NewDockerCmdlineHelper(); err != nil {
-		return nil, errRetFunc()
+		return nil, errRetFunc(err)
 	}
-	// Now parse the current system
+	return composition, nil
+}
+
+// NewComposition create a new Composition specifying the project name (for isolation) and the compose files,
+// and brings up all containers.
+func NewComposition(projectName string, composeFilesYaml string, dir string) (*Composition, error) {
+	composition, err := NewDockerCompose(projectName, composeFilesYaml, dir)
+	if err != nil {
+		return nil, err
+	}
+	err = composition.Up()
+	if err != nil {
+		return nil, err
+	}
 	return composition, nil
 }
 
@@ -62,9 +75,9 @@ func (c *Composition) getFileArgs() []string {
 }
 
 // GetContainerIDs returns the container IDs for the composition (NOTE: does NOT include those defined outside composition, eg. chaincode containers)
-func (c *Composition) GetContainerIDs(dir string) (containerIDs []string, err error) {
+func (c *Composition) GetContainerIDs() (containerIDs []string, err error) {
 	var cmdOutput []byte
-	if cmdOutput, err = c.issueCommand([]string{"ps", "-q"}, dir); err != nil {
+	if cmdOutput, err = c.issueCommand("ps", "-q"); err != nil {
 		return nil, fmt.Errorf("Error getting container IDs for project '%s':  %s", c.projectName, err)
 	}
 	containerIDs = splitDockerCommandResults(string(cmdOutput))
@@ -89,7 +102,7 @@ func (c *Composition) refreshContainerList() (err error) {
 	return err
 }
 
-func (c *Composition) issueCommand(args []string, dir string) (_ []byte, err error) {
+func (c *Composition) issueCommand(args ...string) (_ []byte, err error) {
 	var cmdOut []byte
 	errRetFunc := func() error {
 		return fmt.Errorf("Error issuing command to docker-compose with args '%s':  %s (%s)", args, err, string(cmdOut))
@@ -98,7 +111,7 @@ func (c *Composition) issueCommand(args []string, dir string) (_ []byte, err err
 	cmdArgs = append(cmdArgs, c.getFileArgs()...)
 	cmdArgs = append(cmdArgs, args...)
 	cmd := exec.Command(dockerComposeCommand, cmdArgs...)
-	cmd.Dir = dir
+	cmd.Dir = c.dir
 	if cmdOut, err = cmd.CombinedOutput(); err != nil {
 		return cmdOut, errRetFunc()
 	}
@@ -110,20 +123,35 @@ func (c *Composition) issueCommand(args []string, dir string) (_ []byte, err err
 	return cmdOut, err
 }
 
+// Up brings up all containers
+func (c *Composition) Up() error {
+	if _, err := c.issueCommand("up", "--force-recreate", "-d"); err != nil {
+		return fmt.Errorf("Error bringing up docker containers using compose yaml '%s':  %s", c.composeFilesYaml, err)
+	}
+	return nil
+}
+
 // Decompose decompose the composition.  Will also remove any containers with the same projectName prefix (eg. chaincode containers)
-func (c *Composition) Decompose(dir string) (output string, err error) {
-	var outputBytes []byte
-	//var containers []string
-	outputBytes, err = c.issueCommand([]string{"stop"}, dir)
-	outputBytes, err = c.issueCommand([]string{"rm", "-f"}, dir)
+func (c *Composition) Decompose() (string, error) {
+	_, err := c.issueCommand("stop")
+	if err != nil {
+		return "", err
+	}
+	outputBytes, err := c.issueCommand("rm", "-f")
+	if err != nil {
+		return "", err
+	}
 	// Now remove associated chaincode containers if any
-	c.dockerHelper.RemoveContainersWithNamePrefix(c.projectName)
+	err = c.dockerHelper.RemoveContainersWithNamePrefix(c.projectName)
+	if err != nil {
+		logger.Warnf("Error removing containers: %s", err)
+	}
 	return string(outputBytes), err
 }
 
 // GenerateLogs to file
-func (c *Composition) GenerateLogs(dir string) error {
-	outputBytes, err := c.issueCommand([]string{"logs"}, dir)
+func (c *Composition) GenerateLogs() error {
+	outputBytes, err := c.issueCommand("logs")
 	if err != nil {
 		return err
 	}
