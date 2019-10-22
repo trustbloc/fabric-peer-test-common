@@ -1,4 +1,6 @@
-# fabric-peer-test-lib [![Build Status](https://travis-ci.com/trustbloc/fabric-peer-test-lib.svg?branch=master)](https://travis-ci.com/trustbloc/fabric-peer-test-lib) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://raw.githubusercontent.com/trustbloc/fabric-peer-test-lib/master/LICENSE)
+# fabric-peer-test-lib 
+[![Build Status](https://dev.azure.com/trustbloc/fabric-peer-test-common/_apis/build/status/trustbloc.fabric-peer-test-common?branchName=master)](https://dev.azure.com/trustbloc/fabric-peer-test-common/_build/latest?definitionId=6&branchName=master)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://raw.githubusercontent.com/trustbloc/fabric-peer-test-common/master/LICENSE)
 
 This project contains Common [Behavior-Driven Development (BDD)](https://en.wikipedia.org/wiki/Behavior-driven_development) steps to test fabric-peer.
 
