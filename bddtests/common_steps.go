@@ -64,6 +64,21 @@ type queryInfoResponse struct {
 
 var ccCodesForRetry = []int32{404}
 
+// TODO: status.ConnectionFailed should be added to the fabric-sdk-go as retryable
+var resMgmtRetryableCodes = func() map[status.Group][]status.Code {
+	codes := retry.ResMgmtDefaultRetryableCodes
+	codes[status.EndorserClientStatus] = append(codes[status.EndorserClientStatus], status.ConnectionFailed)
+	return codes
+}
+
+var resMgmtRetryOpts = retry.Opts{
+	Attempts:       20,
+	InitialBackoff: 500 * time.Millisecond,
+	MaxBackoff:     5 * time.Second,
+	BackoffFactor:  2,
+	RetryableCodes: resMgmtRetryableCodes(),
+}
+
 // NewCommonSteps create new CommonSteps struct
 func NewCommonSteps(context *BDDContext) *CommonSteps {
 	//grpclog.SetLogger(logger)
@@ -222,7 +237,7 @@ func (d *CommonSteps) joinPeersToChannel(channelID, orgID string, peersConfig []
 			ChannelConfigPath: txPath,
 			SigningIdentities: []mspApi.SigningIdentity{d.BDDContext.OrgUserContext(orgID, ADMIN)}}
 
-		if _, err = resourceMgmt.SaveChannel(req, resmgmt.WithRetry(retry.DefaultResMgmtOpts)); err != nil {
+		if _, err = resourceMgmt.SaveChannel(req, resmgmt.WithRetry(resMgmtRetryOpts)); err != nil {
 			return errors.WithMessage(err, "SaveChannel failed")
 		}
 	}
@@ -239,7 +254,7 @@ func (d *CommonSteps) joinPeersToChannel(channelID, orgID string, peersConfig []
 		ChannelConfigPath: anchorTxPath,
 		SigningIdentities: []mspApi.SigningIdentity{d.BDDContext.OrgUserContext(orgID, ADMIN)}}
 
-	if _, err := resourceMgmt.SaveChannel(req, resmgmt.WithRetry(retry.DefaultResMgmtOpts)); err != nil {
+	if _, err := resourceMgmt.SaveChannel(req, resmgmt.WithRetry(resMgmtRetryOpts)); err != nil {
 		return errors.WithMessage(err, "SaveChannel failed")
 	}
 
@@ -248,7 +263,7 @@ func (d *CommonSteps) joinPeersToChannel(channelID, orgID string, peersConfig []
 	// Join Channel without error for anchor peers only. ignore JoinChannel error for other peers as AnchorePeer with JoinChannel will add all org's peers
 
 	resMgmtClient := d.BDDContext.ResMgmtClient(orgID, ADMIN)
-	if err = resMgmtClient.JoinChannel(channelID, resmgmt.WithRetry(retry.DefaultResMgmtOpts)); err != nil {
+	if err = resMgmtClient.JoinChannel(channelID, resmgmt.WithRetry(resMgmtRetryOpts)); err != nil {
 		return fmt.Errorf("JoinChannel returned error: %s", err)
 	}
 
@@ -739,7 +754,7 @@ func (d *CommonSteps) doInstallChaincodeToOrg(ccType, ccID, ccPath, ccVersion, o
 		logger.Infof("... installing chaincode [%s] from path [%s] to targets %s", ccID, ccPath, targets)
 		_, err = resMgmtClient.InstallCC(
 			resmgmt.InstallCCRequest{Name: ccID, Path: ccPath, Version: ccVersion, Package: ccPkg},
-			resmgmt.WithRetry(retry.DefaultResMgmtOpts),
+			resmgmt.WithRetry(resMgmtRetryOpts),
 			resmgmt.WithTargetEndpoints(targets...),
 		)
 		if err != nil {
@@ -852,7 +867,7 @@ func (d *CommonSteps) instantiateChaincodeWithOpts(ccType, ccID, ccPath, orgIDs,
 		},
 		resmgmt.WithTargets(sdkPeers...),
 		resmgmt.WithTimeout(fabApi.Execute, 5*time.Minute),
-		resmgmt.WithRetry(retry.DefaultResMgmtOpts),
+		resmgmt.WithRetry(resMgmtRetryOpts),
 	)
 
 	if err != nil && strings.Contains(err.Error(), "already exists") {
@@ -920,7 +935,7 @@ func (d *CommonSteps) upgradeChaincodeWithOpts(ccType, ccID, ccVersion, ccPath, 
 		},
 		resmgmt.WithTargets(sdkPeers...),
 		resmgmt.WithTimeout(fabApi.Execute, 5*time.Minute),
-		resmgmt.WithRetry(retry.DefaultResMgmtOpts),
+		resmgmt.WithRetry(resMgmtRetryOpts),
 	)
 
 	if err != nil && strings.Contains(err.Error(), "already exists") {
@@ -968,7 +983,7 @@ func (d *CommonSteps) deployChaincodeToOrg(ccType, ccID, ccPath, orgIDs, channel
 			}
 
 			installRqst := resmgmt.InstallCCRequest{Name: ccID, Path: ccPath, Version: "v1", Package: ccPkg}
-			_, err = resMgmtClient.InstallCC(installRqst, resmgmt.WithRetry(retry.DefaultResMgmtOpts))
+			_, err = resMgmtClient.InstallCC(installRqst, resmgmt.WithRetry(resMgmtRetryOpts))
 			if err != nil {
 				return fmt.Errorf("SendInstallProposal return error: %s", err)
 			}
@@ -1001,7 +1016,7 @@ func (d *CommonSteps) deployChaincodeToOrg(ccType, ccID, ccPath, orgIDs, channel
 		channelID, instantiateRqst,
 		resmgmt.WithTargets(sdkPeers...),
 		resmgmt.WithTimeout(fabApi.Execute, 5*time.Minute),
-		resmgmt.WithRetry(retry.DefaultResMgmtOpts),
+		resmgmt.WithRetry(resMgmtRetryOpts),
 	)
 	return err
 }
