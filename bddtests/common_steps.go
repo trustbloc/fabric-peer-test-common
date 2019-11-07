@@ -72,7 +72,7 @@ var resMgmtRetryableCodes = func() map[status.Group][]status.Code {
 }
 
 var resMgmtRetryOpts = retry.Opts{
-	Attempts:       20,
+	Attempts:       50,
 	InitialBackoff: 500 * time.Millisecond,
 	MaxBackoff:     5 * time.Second,
 	BackoffFactor:  2,
