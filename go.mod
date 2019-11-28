@@ -4,8 +4,8 @@ require (
 	github.com/DATA-DOG/godog v0.7.13
 	github.com/containerd/continuity v0.0.0-20181003075958-be9bd761db19 // indirect
 	github.com/fsouza/go-dockerclient v1.3.0
-	github.com/hyperledger/fabric-protos-go v0.0.0-20190821180310-6b6ac9042dfd
-	github.com/hyperledger/fabric-sdk-go v1.0.0-beta1.0.20190930220855-cea2ffaf627c
+	github.com/hyperledger/fabric-protos-go v0.0.0-20191121202242-f5500d5e3e85
+	github.com/hyperledger/fabric-sdk-go v1.0.0-beta1.0.20191127214205-648507b21445
 	github.com/magiconair/properties v1.8.0 // indirect
 	github.com/mitchellh/mapstructure v1.1.1 // indirect
 	github.com/pkg/errors v0.8.1
@@ -18,5 +18,4 @@ require (
 	github.com/spf13/viper v1.0.2
 	github.com/stretchr/testify v1.3.0
 	github.com/tidwall/gjson v1.3.2
-	google.golang.org/appengine v1.4.0 // indirect
 )

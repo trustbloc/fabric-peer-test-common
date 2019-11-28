@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/common/selection/staticselection"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/resmgmt"
@@ -33,7 +33,7 @@ var ADMIN = "admin"
 var USER = "user"
 
 // CollectionConfigCreator creates a collection config for the given channel
-type CollectionConfigCreator func(channelID string) (*common.CollectionConfig, error)
+type CollectionConfigCreator func(channelID string) (*pb.CollectionConfig, error)
 
 // BDDContext ...
 type BDDContext struct {

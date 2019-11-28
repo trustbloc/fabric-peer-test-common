@@ -20,6 +20,7 @@ import (
 	"github.com/DATA-DOG/godog"
 	"github.com/hyperledger/fabric-protos-go/common"
 	fabricCommon "github.com/hyperledger/fabric-protos-go/common"
+	pb "github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/channel/invoke"
 	"github.com/hyperledger/fabric-sdk-go/pkg/client/resmgmt"
@@ -838,7 +839,7 @@ func (d *CommonSteps) instantiateChaincodeWithOpts(ccType, ccID, ccPath, orgIDs,
 		}
 	}
 
-	var collConfig []*common.CollectionConfig
+	var collConfig []*pb.CollectionConfig
 	if collectionNames != "" {
 		// Define the private data collection policy config
 		for _, collName := range strings.Split(collectionNames, ",") {
@@ -906,7 +907,7 @@ func (d *CommonSteps) upgradeChaincodeWithOpts(ccType, ccID, ccVersion, ccPath, 
 		}
 	}
 
-	var collConfig []*common.CollectionConfig
+	var collConfig []*pb.CollectionConfig
 	if collectionNames != "" {
 		// Define the private data collection policy config
 		for _, collName := range strings.Split(collectionNames, ",") {
@@ -994,7 +995,7 @@ func (d *CommonSteps) deployChaincodeToOrg(ccType, ccID, ccPath, orgIDs, channel
 
 	argsArray := strings.Split(args, ",")
 
-	var collConfig []*common.CollectionConfig
+	var collConfig []*pb.CollectionConfig
 	if collectionNames != "" {
 		// Define the private data collection policy config
 		for _, collName := range strings.Split(collectionNames, ",") {
@@ -1082,7 +1083,7 @@ func (d *CommonSteps) defineCollectionConfig(id, collection, policy string, requ
 	return nil
 }
 
-func (d *CommonSteps) newCollectionConfig(channelID string, collName string) (*common.CollectionConfig, error) {
+func (d *CommonSteps) newCollectionConfig(channelID string, collName string) (*pb.CollectionConfig, error) {
 	createCollectionConfig := d.BDDContext.CollectionConfig(collName)
 	if createCollectionConfig == nil {
 		return nil, errors.Errorf("no collection config defined for collection [%s]", collName)
@@ -1093,7 +1094,7 @@ func (d *CommonSteps) newCollectionConfig(channelID string, collName string) (*c
 // DefineCollectionConfig defines a new private data collection configuration
 func (d *CommonSteps) DefineCollectionConfig(id, name, policy string, requiredPeerCount, maxPeerCount int32, blocksToLive uint64) {
 	d.BDDContext.DefineCollectionConfig(id,
-		func(channelID string) (*common.CollectionConfig, error) {
+		func(channelID string) (*pb.CollectionConfig, error) {
 			sigPolicy, err := d.newChaincodePolicy(policy, channelID)
 			if err != nil {
 				return nil, errors.Wrapf(err, "error creating collection policy for collection [%s]", name)
@@ -1156,16 +1157,16 @@ func ResolveAllVars(args string) ([]string, error) {
 	return ResolveAll(vars, strings.Split(args, ","))
 }
 
-func newPrivateCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, blocksToLive uint64, policy *common.SignaturePolicyEnvelope) *common.CollectionConfig {
-	return &common.CollectionConfig{
-		Payload: &common.CollectionConfig_StaticCollectionConfig{
-			StaticCollectionConfig: &common.StaticCollectionConfig{
+func newPrivateCollectionConfig(collName string, requiredPeerCount, maxPeerCount int32, blocksToLive uint64, policy *common.SignaturePolicyEnvelope) *pb.CollectionConfig {
+	return &pb.CollectionConfig{
+		Payload: &pb.CollectionConfig_StaticCollectionConfig{
+			StaticCollectionConfig: &pb.StaticCollectionConfig{
 				Name:              collName,
 				RequiredPeerCount: requiredPeerCount,
 				MaximumPeerCount:  maxPeerCount,
 				BlockToLive:       blocksToLive,
-				MemberOrgsPolicy: &common.CollectionPolicyConfig{
-					Payload: &common.CollectionPolicyConfig_SignaturePolicy{
+				MemberOrgsPolicy: &pb.CollectionPolicyConfig{
+					Payload: &pb.CollectionPolicyConfig_SignaturePolicy{
 						SignaturePolicy: policy,
 					},
 				},
