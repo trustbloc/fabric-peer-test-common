@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package bddtests
 
 import (
-	"github.com/DATA-DOG/godog"
+	"github.com/cucumber/godog"
 )
 
 // DockerSteps manages Docker BDD steps
