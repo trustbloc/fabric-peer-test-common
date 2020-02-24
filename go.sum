@@ -67,8 +67,10 @@ github.com/hyperledger/fabric-lib-go v1.0.0 h1:UL1w7c9LvHZUSkIvHTDGklxFv2kTeva1Q
 github.com/hyperledger/fabric-lib-go v1.0.0/go.mod h1:H362nMlunurmHwkYqR5uHL2UDWbQdbfz74n8kbCFsqc=
 github.com/hyperledger/fabric-protos-go v0.0.0-20191121202242-f5500d5e3e85 h1:bNgEcCg5NVRWs/T+VUEfhgh5Olx/N4VB+0+ybW+oSuA=
 github.com/hyperledger/fabric-protos-go v0.0.0-20191121202242-f5500d5e3e85/go.mod h1:xVYTjK4DtZRBxZ2D9aE4y6AbLaPwue2o/criQyQbVD0=
-github.com/hyperledger/fabric-sdk-go v1.0.0-beta1.0.20191127214205-648507b21445 h1:AjIE+/GLYv1+FJi4SToHN03xT4doENlO5/Kqi1HtEA4=
-github.com/hyperledger/fabric-sdk-go v1.0.0-beta1.0.20191127214205-648507b21445/go.mod h1:5ehPzmNekl6dCIu1aFljDY7ML/dzNZRZE7CCHnmhtp8=
+github.com/hyperledger/fabric-protos-go v0.0.0-20200124220212-e9cfc186ba7b h1:rZ3Vro68vStzLYfcSrQlprjjCf5UmFk7QjKGgHL8IQg=
+github.com/hyperledger/fabric-protos-go v0.0.0-20200124220212-e9cfc186ba7b/go.mod h1:xVYTjK4DtZRBxZ2D9aE4y6AbLaPwue2o/criQyQbVD0=
+github.com/hyperledger/fabric-sdk-go v1.0.0-beta1.0.20200222173625-ff3bdd738791 h1:bO+kxGeVboCMBEWNuqnmjrN+yjzT53rva00aIS+UnHc=
+github.com/hyperledger/fabric-sdk-go v1.0.0-beta1.0.20200222173625-ff3bdd738791/go.mod h1:/s224b8NLvOJOCIqBvWd9O6u7GE33iuIOT6OfcTE1OE=
 github.com/konsorten/go-windows-terminal-sequences v0.0.0-20180402223658-b729f2633dfe h1:CHRGQ8V7OlCYtwaKPJi3iA7J+YdNKdo8j7nG5IgDhjs=
 github.com/konsorten/go-windows-terminal-sequences v0.0.0-20180402223658-b729f2633dfe/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515 h1:T+h1c/A9Gawja4Y9mFVWj2vyii2bbUNDw3kt9VxK2EY=
