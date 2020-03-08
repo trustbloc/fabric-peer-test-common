@@ -215,3 +215,61 @@ func doResolve(vars map[string]string, arg string) (string, error) {
 func replace(arg, value string, open, close int) string {
 	return arg[0:open] + value + arg[close+1:]
 }
+
+// ResolveVars resolves all variables within the given value. The value
+// may be one of the following types:
+// - string
+// - []interface{}
+// - map[string]interface{}
+// All other types will return with no resolution
+func ResolveVars(val interface{}) (interface{}, error) {
+	switch v := val.(type) {
+	case string:
+		val, err := Resolve(vars, v)
+		if err != nil {
+			return nil, err
+		}
+		return val, nil
+
+	case []interface{}:
+		val, err := resolveArray(v)
+		if err != nil {
+			return nil, err
+		}
+		return val, nil
+
+	case map[string]interface{}:
+		val, err := resolveMap(v)
+		if err != nil {
+			return nil, err
+		}
+		return val, nil
+
+	default:
+		return val, nil
+	}
+}
+
+func resolveMap(doc map[string]interface{}) (map[string]interface{}, error) {
+	m := make(map[string]interface{})
+	for field, val := range doc {
+		val, err := ResolveVars(val)
+		if err != nil {
+			return nil, errors.WithMessagef(err, "error resolving field [%s]", field)
+		}
+		m[field] = val
+	}
+	return m, nil
+}
+
+func resolveArray(arr []interface{}) ([]interface{}, error) {
+	resolved := make([]interface{}, len(arr))
+	for i, v := range arr {
+		val, err := ResolveVars(v)
+		if err != nil {
+			return nil, errors.WithMessagef(err, "error resolving array element %d", i)
+		}
+		resolved[i] = val
+	}
+	return resolved, nil
+}

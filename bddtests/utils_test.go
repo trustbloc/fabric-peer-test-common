@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package bddtests
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,4 +86,24 @@ func TestResolveAll(t *testing.T) {
 	args, err := ResolveAll(vars, []string{"${var1}", "${var2}"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"val1", "val2"}, args)
+}
+
+func TestResolveVars(t *testing.T) {
+	SetVar("v1", "value1")
+	SetVar("v2", "value2")
+	SetVar("v3", "value3")
+	SetVar("v4", "value4")
+	SetVar("v5", "value5")
+	SetVar("v6", "value6")
+
+	doc := make(map[string]interface{})
+	err := json.Unmarshal([]byte(`{"v1":"${v1}","some-number":12345,"some-array":["${v2}","${v3}"],"some-doc":{"field1":"${v4}","field2":["${v5}","${v6}"]}}`), &doc)
+	require.NoError(t, err)
+
+	m, err := ResolveVars(doc)
+	require.NoError(t, err)
+
+	bytes, err := json.Marshal(m)
+	require.NoError(t, err)
+	require.Equal(t, `{"some-array":["value2","value3"],"some-doc":{"field1":"value4","field2":["value5","value6"]},"some-number":12345,"v1":"value1"}`, string(bytes))
 }

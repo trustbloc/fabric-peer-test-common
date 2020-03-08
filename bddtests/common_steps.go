@@ -636,12 +636,22 @@ func (d *CommonSteps) setVariableFromCCResponse(key string) error {
 }
 
 func (d *CommonSteps) setJSONVariable(varName, value string) error {
-	// Validate the JSON
 	m := make(map[string]interface{})
 	if err := json.Unmarshal([]byte(value), &m); err != nil {
 		return errors.WithMessagef(err, "invalid JSON: %s", value)
 	}
-	SetVar(varName, value)
+
+	doc, err := resolveMap(m)
+	if err != nil {
+		return err
+	}
+
+	bytes, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+
+	SetVar(varName, string(bytes))
 	return nil
 }
 
