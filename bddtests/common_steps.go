@@ -656,11 +656,20 @@ func (d *CommonSteps) setJSONVariable(varName, value string) error {
 }
 
 func (d *CommonSteps) jsonPathOfCCResponseEquals(path, expected string) error {
+	resolved, err := ResolveVars(expected)
+	if err != nil {
+		return err
+	}
+
+	expected = resolved.(string)
+
 	r := gjson.Get(queryValue, path)
+
 	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Str)
 	if r.Str == expected {
 		return nil
 	}
+
 	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Str, expected)
 }
 
@@ -674,14 +683,34 @@ func (d *CommonSteps) jsonPathOfCCHasNumItems(path string, expectedNum int) erro
 }
 
 func (d *CommonSteps) jsonPathOfCCResponseContains(path, expected string) error {
+	resolved, err := ResolveVars(expected)
+	if err != nil {
+		return err
+	}
+
+	expected = resolved.(string)
+
 	r := gjson.Get(queryValue, path)
+
 	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Raw)
+
 	for _, a := range r.Array() {
 		if a.Str == expected {
 			return nil
 		}
 	}
+
 	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Array(), expected)
+}
+
+func (d *CommonSteps) jsonPathOfResponseSavedToVar(path, varName string) error {
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s. Saving to variable [%s]", path, queryValue, r.Str, varName)
+
+	SetVar(varName, r.Str)
+
+	return nil
 }
 
 func (d *CommonSteps) installChaincodeToAllPeers(ccType, ccID, ccPath string) error {
@@ -1247,4 +1276,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfCCResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfCCHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfCCResponseContains)
+	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
 }
