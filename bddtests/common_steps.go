@@ -9,7 +9,9 @@ package bddtests
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"path"
 	"regexp"
@@ -1143,6 +1145,45 @@ func (d *CommonSteps) DefineCollectionConfig(id, name, policy string, requiredPe
 	)
 }
 
+func (d *CommonSteps) httpGet(url string) error {
+	ClearResponse()
+
+	resolved, err := ResolveVars(url)
+	if err != nil {
+		return err
+	}
+
+	url = resolved.(string)
+
+	client := &http.Client{}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.Errorf("received status code %d", resp.StatusCode)
+	}
+
+	contentType, ok := resp.Header["Content-Type"]
+	if ok && strings.HasPrefix(contentType[0], "image") {
+		logger.Infof("... got HTTP image of type [%s]", contentType)
+		return nil
+	}
+
+	payload, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("reading response body failed: %s", err)
+	}
+
+	logger.Infof("... got HTTP response of type [%s]:\n%s", contentType[0], payload)
+
+	SetResponse(string(payload))
+
+	return nil
+}
+
 // ClearResponse clears the query response
 func ClearResponse() {
 	queryValue = ""
@@ -1277,4 +1318,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfCCHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfCCResponseContains)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
+	s.Step(`^an HTTP request is sent to "([^"]*)"$`, d.httpGet)
 }
