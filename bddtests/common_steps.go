@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package bddtests
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -1156,6 +1157,14 @@ func (d *CommonSteps) httpGet(url string) error {
 	url = resolved.(string)
 
 	client := &http.Client{}
+
+	if strings.HasPrefix(url, "https") {
+		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
+		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
+		}
+	}
 
 	resp, err := client.Get(url)
 	if err != nil {
