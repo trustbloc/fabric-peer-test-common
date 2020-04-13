@@ -7,11 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package bddtests
 
 import (
+	"bytes"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"mime"
 	"net/http"
 	"os"
 	"path"
@@ -632,6 +634,15 @@ func (d *CommonSteps) equalQueryValue(ccID string, value string) error {
 	return fmt.Errorf("Query value(%s) doesn't equal expected value(%s)", queryValue, value)
 }
 
+func (d *CommonSteps) responseEquals(value string) error {
+	if queryValue == value {
+		logger.Infof("Response equals expected value [%s]", value)
+		return nil
+	}
+
+	return fmt.Errorf("Reponse [%s] does not equal expected value [%s]", queryValue, value)
+}
+
 func (d *CommonSteps) setVariableFromCCResponse(key string) error {
 	logger.Infof("Saving value %s to variable %s", queryValue, key)
 	SetVar(key, queryValue)
@@ -1146,12 +1157,44 @@ func (d *CommonSteps) DefineCollectionConfig(id, name, policy string, requiredPe
 	)
 }
 
+func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) error {
+	resp, code, err := d.doHTTPGet(url)
+	if err != nil {
+		return err
+	}
+
+	SetResponse(string(resp))
+
+	if code != expectingCode {
+		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
+	}
+
+	logger.Infof("Returned status code is %d which is the expected status code", code)
+
+	return nil
+}
+
 func (d *CommonSteps) httpGet(url string) error {
+	resp, code, err := d.doHTTPGet(url)
+	if err != nil {
+		return err
+	}
+
+	SetResponse(string(resp))
+
+	if code != http.StatusOK {
+		return errors.Errorf("received status code %d", code)
+	}
+
+	return nil
+}
+
+func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, error) {
 	ClearResponse()
 
 	resolved, err := ResolveVars(url)
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 
 	url = resolved.(string)
@@ -1168,29 +1211,105 @@ func (d *CommonSteps) httpGet(url string) error {
 
 	resp, err := client.Get(url)
 	if err != nil {
-		return err
+		return nil, 0, err
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return errors.Errorf("received status code %d", resp.StatusCode)
+	payload, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, 0, fmt.Errorf("reading response body failed: %s", err)
 	}
 
 	contentType, ok := resp.Header["Content-Type"]
 	if ok && strings.HasPrefix(contentType[0], "image") {
 		logger.Infof("... got HTTP image of type [%s]", contentType)
-		return nil
+	} else if ok {
+		logger.Infof("... got HTTP response of type [%s]:\n%s", contentType[0], payload)
+	} else {
+		logger.Infof("... got HTTP response of unknown type:\n%s", payload)
+	}
+
+	return payload, resp.StatusCode, nil
+}
+
+func (d *CommonSteps) httpPost(url, path string) error {
+	resp, code, err := d.doHTTPPost(url, path)
+	if err != nil {
+		return err
+	}
+
+	SetResponse(string(resp))
+
+	if code != http.StatusOK {
+		return errors.Errorf("received status code %d", code)
+	}
+
+	return nil
+}
+
+func (d *CommonSteps) httpPostWithExpectedCode(url, path string, expectingCode int) error {
+	resp, code, err := d.doHTTPPost(url, path)
+	if err != nil {
+		return err
+	}
+
+	SetResponse(string(resp))
+
+	if code != expectingCode {
+		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
+	}
+
+	logger.Infof("Returned status code is %d which is the expected status code", code)
+
+	return nil
+}
+
+func (d *CommonSteps) doHTTPPost(url, path string) ([]byte, int, error) {
+	logger.Infof("Uploading file [%s] to [%s]", path, url)
+
+	fileBytes := getFile(path)
+
+	client := &http.Client{}
+
+	if strings.HasPrefix(url, "https") {
+		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
+		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
+		}
+	}
+
+	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(fileBytes))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	contentType, err := contentTypeFromFileName(path)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	httpReq.Header.Set("Content-Type", contentType)
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	payload, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("reading response body failed: %s", err)
+		return nil, resp.StatusCode, err
 	}
 
-	logger.Infof("... got HTTP response of type [%s]:\n%s", contentType[0], payload)
+	retContentType, ok := resp.Header["Content-Type"]
+	if ok && strings.HasPrefix(retContentType[0], "image") {
+		logger.Infof("... got HTTP image of type [%s]", contentType)
+	} else if ok {
+		logger.Infof("... got HTTP response of type [%s]:\n%s", contentType[0], payload)
+	} else {
+		logger.Infof("... got HTTP response of unknown type:\n%s", payload)
+	}
 
-	SetResponse(string(payload))
-
-	return nil
+	return payload, resp.StatusCode, nil
 }
 
 // ClearResponse clears the query response
@@ -1286,6 +1405,34 @@ func NewChaincodePolicy(bddCtx *BDDContext, ccPolicy, channelID string) (*fabric
 	return cauthdsl.SignedByAnyMember(mspIDs), nil
 }
 
+func getFile(path string) []byte {
+	r, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		panic(err)
+	}
+
+	return data
+}
+
+func contentTypeFromFileName(fileName string) (string, error) {
+	p := strings.LastIndex(fileName, ".")
+	if p == -1 {
+		return "", errors.New("content type cannot be deduced since no file extension provided")
+	}
+
+	contentType := mime.TypeByExtension(fileName[p:])
+	if contentType == "" {
+		return "", errors.New("content type cannot be deduced from extension")
+	}
+
+	return contentType, nil
+}
+
 // RegisterSteps register steps
 func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.BeforeScenario(d.BDDContext.BeforeScenario)
@@ -1323,9 +1470,13 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the last block from the "([^"]*)" channel is displayed$`, d.displayLastBlockFromChannel)
 	s.Step(`^the response is saved to variable "([^"]*)"$`, d.setVariableFromCCResponse)
 	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
+	s.Step(`^the response equals "([^"]*)"$`, d.responseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfCCResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfCCHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfCCResponseContains)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
-	s.Step(`^an HTTP request is sent to "([^"]*)"$`, d.httpGet)
+	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
+	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$`, d.httpPost)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$ and the returned status code is (\d+)`, d.httpPostWithExpectedCode)
 }
