@@ -687,6 +687,26 @@ func (d *CommonSteps) jsonPathOfCCResponseEquals(path, expected string) error {
 	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Str, expected)
 }
 
+func (d *CommonSteps) jsonPathOfNumericResponseEquals(path, expected string) error {
+	resolved, err := ResolveVars(expected)
+	if err != nil {
+		return err
+	}
+
+	expected = resolved.(string)
+
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %g", path, queryValue, r.Num)
+
+	strNum := strconv.FormatFloat(r.Num, 'g', -1, 64)
+	if strNum == expected {
+		return nil
+	}
+
+	return fmt.Errorf("JSON path resolves to [%g] which is not the expected value [%s]", r.Num, expected)
+}
+
 func (d *CommonSteps) jsonPathOfCCHasNumItems(path string, expectedNum int) error {
 	r := gjson.Get(queryValue, path)
 	logger.Infof("Path [%s] of JSON %s resolves to %d items", path, queryValue, int(r.Num))
@@ -723,6 +743,16 @@ func (d *CommonSteps) jsonPathOfResponseSavedToVar(path, varName string) error {
 	logger.Infof("Path [%s] of JSON %s resolves to %s. Saving to variable [%s]", path, queryValue, r.Str, varName)
 
 	SetVar(varName, r.Str)
+
+	return nil
+}
+
+func (d *CommonSteps) jsonPathOfNumericResponseSavedToVar(path, varName string) error {
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %g. Saving to variable [%s]", path, queryValue, r.Num, varName)
+
+	SetVar(varName, strconv.FormatFloat(r.Num, 'g', -1, 64))
 
 	return nil
 }
@@ -1483,9 +1513,11 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
 	s.Step(`^the response equals "([^"]*)"$`, d.responseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfCCResponseEquals)
+	s.Step(`^the JSON path "([^"]*)" of the numeric response equals "([^"]*)"$`, d.jsonPathOfNumericResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfCCHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfCCResponseContains)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
+	s.Step(`^the JSON path "([^"]*)" of the numeric response is saved to variable "([^"]*)"$`, d.jsonPathOfNumericResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the response is not empty$`, d.jsonPathOfResponseNotEmpty)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
