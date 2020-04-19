@@ -707,6 +707,26 @@ func (d *CommonSteps) jsonPathOfNumericResponseEquals(path, expected string) err
 	return fmt.Errorf("JSON path resolves to [%g] which is not the expected value [%s]", r.Num, expected)
 }
 
+func (d *CommonSteps) jsonPathOfBoolResponseEquals(path, expected string) error {
+	resolved, err := ResolveVars(expected)
+	if err != nil {
+		return err
+	}
+
+	expected = resolved.(string)
+
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %t", path, queryValue, r.Bool())
+
+	strBool := strconv.FormatBool(r.Bool())
+	if strBool == expected {
+		return nil
+	}
+
+	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", strBool, expected)
+}
+
 func (d *CommonSteps) jsonPathOfCCHasNumItems(path string, expectedNum int) error {
 	r := gjson.Get(queryValue, path)
 	logger.Infof("Path [%s] of JSON %s resolves to %d items", path, queryValue, int(r.Num))
@@ -753,6 +773,16 @@ func (d *CommonSteps) jsonPathOfNumericResponseSavedToVar(path, varName string) 
 	logger.Infof("Path [%s] of JSON %s resolves to %g. Saving to variable [%s]", path, queryValue, r.Num, varName)
 
 	SetVar(varName, strconv.FormatFloat(r.Num, 'g', -1, 64))
+
+	return nil
+}
+
+func (d *CommonSteps) jsonPathOfBoolResponseSavedToVar(path, varName string) error {
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %t. Saving to variable [%s]", path, queryValue, r.Bool(), varName)
+
+	SetVar(varName, strconv.FormatBool(r.Bool()))
 
 	return nil
 }
@@ -1514,10 +1544,12 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the response equals "([^"]*)"$`, d.responseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfCCResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response equals "([^"]*)"$`, d.jsonPathOfNumericResponseEquals)
+	s.Step(`^the JSON path "([^"]*)" of the boolean response equals "([^"]*)"$`, d.jsonPathOfBoolResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfCCHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfCCResponseContains)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response is saved to variable "([^"]*)"$`, d.jsonPathOfNumericResponseSavedToVar)
+	s.Step(`^the JSON path "([^"]*)" of the boolean response is saved to variable "([^"]*)"$`, d.jsonPathOfBoolResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the response is not empty$`, d.jsonPathOfResponseNotEmpty)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
