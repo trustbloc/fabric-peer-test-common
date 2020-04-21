@@ -777,6 +777,16 @@ func (d *CommonSteps) jsonPathOfNumericResponseSavedToVar(path, varName string) 
 	return nil
 }
 
+func (d *CommonSteps) jsonPathOfRawResponseSavedToVar(path, varName string) error {
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s. Saving to variable [%s]", path, queryValue, r.Raw, varName)
+
+	SetVar(varName, r.Raw)
+
+	return nil
+}
+
 func (d *CommonSteps) jsonPathOfBoolResponseSavedToVar(path, varName string) error {
 	r := gjson.Get(queryValue, path)
 
@@ -1302,8 +1312,8 @@ func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, error) {
 	return payload, resp.StatusCode, nil
 }
 
-func (d *CommonSteps) httpPost(url, path string) error {
-	resp, code, err := d.doHTTPPost(url, path)
+func (d *CommonSteps) httpPostFile(url, path string) error {
+	resp, code, err := d.doHTTPPostFile(url, path)
 	if err != nil {
 		return err
 	}
@@ -1317,8 +1327,8 @@ func (d *CommonSteps) httpPost(url, path string) error {
 	return nil
 }
 
-func (d *CommonSteps) httpPostWithExpectedCode(url, path string, expectingCode int) error {
-	resp, code, err := d.doHTTPPost(url, path)
+func (d *CommonSteps) httpPostFileWithExpectedCode(url, path string, expectingCode int) error {
+	resp, code, err := d.doHTTPPostFile(url, path)
 	if err != nil {
 		return err
 	}
@@ -1334,11 +1344,64 @@ func (d *CommonSteps) httpPostWithExpectedCode(url, path string, expectingCode i
 	return nil
 }
 
-func (d *CommonSteps) doHTTPPost(url, path string) ([]byte, int, error) {
+func (d *CommonSteps) httpPost(url, data, contentType string) error {
+	resolved, err := ResolveVars(data)
+	if err != nil {
+		return err
+	}
+
+	data = resolved.(string)
+
+	resp, code, err := d.doHTTPPost(url, []byte(data), contentType)
+	if err != nil {
+		return err
+	}
+
+	SetResponse(string(resp))
+
+	if code != http.StatusOK {
+		return errors.Errorf("received status code %d", code)
+	}
+
+	return nil
+}
+
+func (d *CommonSteps) httpPostWithExpectedCode(url, data, contentType string, expectingCode int) error {
+	resolved, err := ResolveVars(data)
+	if err != nil {
+		return err
+	}
+
+	data = resolved.(string)
+
+	resp, code, err := d.doHTTPPost(url, []byte(data), contentType)
+	if err != nil {
+		return err
+	}
+
+	SetResponse(string(resp))
+
+	if code != expectingCode {
+		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
+	}
+
+	logger.Infof("Returned status code is %d which is the expected status code", code)
+
+	return nil
+}
+
+func (d *CommonSteps) doHTTPPostFile(url, path string) ([]byte, int, error) {
 	logger.Infof("Uploading file [%s] to [%s]", path, url)
 
-	fileBytes := getFile(path)
+	contentType, err := contentTypeFromFileName(path)
+	if err != nil {
+		return nil, 0, err
+	}
 
+	return d.doHTTPPost(url, getFile(path), contentType)
+}
+
+func (d *CommonSteps) doHTTPPost(url string, data []byte, contentType string) ([]byte, int, error) {
 	client := &http.Client{}
 
 	if strings.HasPrefix(url, "https") {
@@ -1349,12 +1412,9 @@ func (d *CommonSteps) doHTTPPost(url, path string) ([]byte, int, error) {
 		}
 	}
 
-	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(fileBytes))
-	if err != nil {
-		return nil, 0, err
-	}
+	logger.Infof("Posting request of content-type [%s] to [%s]: %s", contentType, url, data)
 
-	contentType, err := contentTypeFromFileName(path)
+	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(data))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1550,9 +1610,12 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response is saved to variable "([^"]*)"$`, d.jsonPathOfNumericResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the boolean response is saved to variable "([^"]*)"$`, d.jsonPathOfBoolResponseSavedToVar)
+	s.Step(`^the JSON path "([^"]*)" of the raw response is saved to variable "([^"]*)"$`, d.jsonPathOfRawResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the response is not empty$`, d.jsonPathOfResponseNotEmpty)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$`, d.httpPost)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$ and the returned status code is (\d+)`, d.httpPostWithExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$`, d.httpPostFile)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$ and the returned status code is (\d+)`, d.httpPostFileWithExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$`, d.httpPost)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$ and the returned status code is (\d+)`, d.httpPostWithExpectedCode)
 }
