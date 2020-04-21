@@ -651,21 +651,37 @@ func (d *CommonSteps) setVariableFromCCResponse(key string) error {
 
 func (d *CommonSteps) setJSONVariable(varName, value string) error {
 	m := make(map[string]interface{})
+	var bytes []byte
+
 	if err := json.Unmarshal([]byte(value), &m); err != nil {
-		return errors.WithMessagef(err, "invalid JSON: %s", value)
-	}
+		var arr []interface{}
+		if err := json.Unmarshal([]byte(value), &arr); err != nil {
+			return errors.WithMessagef(err, "invalid JSON: %s", value)
+		}
 
-	doc, err := resolveMap(m)
-	if err != nil {
-		return err
-	}
+		arr, err = resolveArray(arr)
+		if err != nil {
+			return err
+		}
 
-	bytes, err := json.Marshal(doc)
-	if err != nil {
-		return err
+		bytes, err = json.Marshal(arr)
+		if err != nil {
+			return err
+		}
+	} else {
+		doc, err := resolveMap(m)
+		if err != nil {
+			return err
+		}
+
+		bytes, err = json.Marshal(doc)
+		if err != nil {
+			return err
+		}
 	}
 
 	SetVar(varName, string(bytes))
+
 	return nil
 }
 
@@ -1615,7 +1631,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$`, d.httpPostFile)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$ and the returned status code is (\d+)`, d.httpPostFileWithExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$`, d.httpPost)
-	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$ and the returned status code is (\d+)`, d.httpPostWithExpectedCode)
+	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithExpectedCode)
 }
