@@ -824,6 +824,17 @@ func (d *CommonSteps) jsonPathOfResponseNotEmpty(path string) error {
 	return fmt.Errorf("JSON path resolves to an empty value")
 }
 
+func (d *CommonSteps) jsonPathOfArrayResponseNotEmpty(path string) error {
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Raw)
+	if r.Num == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("JSON path resolves to an empty value")
+}
+
 func (d *CommonSteps) installChaincodeToAllPeers(ccType, ccID, ccPath string) error {
 	logger.Infof("Installing chaincode [%s] from path [%s] to all peers", ccID, ccPath)
 	return d.doInstallChaincodeToOrg(ccType, ccID, ccPath, "v1", "", "")
@@ -1628,6 +1639,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the boolean response is saved to variable "([^"]*)"$`, d.jsonPathOfBoolResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the raw response is saved to variable "([^"]*)"$`, d.jsonPathOfRawResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the response is not empty$`, d.jsonPathOfResponseNotEmpty)
+	s.Step(`^the JSON path "([^"]*)" of the array response is not empty$`, d.jsonPathOfArrayResponseNotEmpty)
 	s.Step(`^an HTTP GET is sent to "([^"]*)"$`, d.httpGet)
 	s.Step(`^an HTTP GET is sent to "([^"]*)" and the returned status code is (\d+)$`, d.httpGetWithExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)"$`, d.httpPostFile)
