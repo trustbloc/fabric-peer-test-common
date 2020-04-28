@@ -9,6 +9,7 @@ package bddtests
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -827,12 +828,15 @@ func (d *CommonSteps) jsonPathOfResponseNotEmpty(path string) error {
 func (d *CommonSteps) jsonPathOfArrayResponseNotEmpty(path string) error {
 	r := gjson.Get(queryValue, path)
 
-	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Raw)
-	if r.Num == 0 {
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Array())
+
+	if len(r.Array()) > 0 {
+		logger.Infof("Path [%s] of JSON %s resolves to %d array elements", path, queryValue, len(r.Array()))
+
 		return nil
 	}
 
-	return fmt.Errorf("JSON path resolves to an empty value")
+	return fmt.Errorf("JSON path [%s] resolves to an empty array", path)
 }
 
 func (d *CommonSteps) installChaincodeToAllPeers(ccType, ccID, ccPath string) error {
@@ -1470,6 +1474,66 @@ func (d *CommonSteps) doHTTPPost(url string, data []byte, contentType string) ([
 	return payload, resp.StatusCode, nil
 }
 
+func (d *CommonSteps) decodeValueFromBase64(value, varName string) error {
+	resolvedValue, err := ResolveVarsInExpression(value)
+	if err != nil {
+		return err
+	}
+
+	decodedBytes, err := base64.StdEncoding.DecodeString(resolvedValue)
+	if err != nil {
+		return errors.Errorf("value [%s] is not a base64-encoded string: %s", resolvedValue, err)
+	}
+
+	SetVar(varName, string(decodedBytes))
+
+	logger.Infof("Decoded the base64-encoded value [%s] to [%s] and saved to variable [%s]", resolvedValue, decodedBytes, varName)
+
+	return nil
+}
+
+func (d *CommonSteps) convertValueToBase64URLEncoding(expr, varName string) error {
+	value, err := ResolveVarsInExpression(expr)
+	if err != nil {
+		return err
+	}
+
+	decodedBytes, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return errors.Errorf("value [%s] is not a base64-encoded string: %s", value, err)
+	}
+
+	urlEncodedString := base64.URLEncoding.EncodeToString(decodedBytes)
+
+	SetVar(varName, urlEncodedString)
+
+	logger.Infof("Converted the base64-encoded value [%s] to base64URL-encoding [%s] and saved to variable [%s]", value, urlEncodedString, varName)
+
+	return nil
+}
+
+func (d *CommonSteps) valuesEqual(expr1, expr2 string) error {
+	value1, err := ResolveVarsInExpression(expr1)
+	if err != nil {
+		return err
+	}
+
+	value2, err := ResolveVarsInExpression(expr2)
+	if err != nil {
+		return err
+	}
+
+	if value1 == value2 {
+		logger.Infof("Values are equal [%s]", value1)
+
+		return nil
+	}
+
+	logger.Infof("Value1 [%s] does not equal value 2 [%s]", value1, value2)
+
+	return errors.Errorf("values [%s] and [%s] are not equal", value1, value2)
+}
+
 // ClearResponse clears the query response
 func ClearResponse() {
 	queryValue = ""
@@ -1646,4 +1710,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content from file "([^"]*)" and the returned status code is (\d+)$`, d.httpPostFileWithExpectedCode)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)"$`, d.httpPost)
 	s.Step(`^an HTTP POST is sent to "([^"]*)" with content "([^"]*)" of type "([^"]*)" and the returned status code is (\d+)$`, d.httpPostWithExpectedCode)
+	s.Step(`^the base64-encoded value "([^"]*)" is decoded and saved to variable "([^"]*)"$`, d.decodeValueFromBase64)
+	s.Step(`^the base64-encoded value "([^"]*)" is converted to base64URL-encoding and saved to variable "([^"]*)"$`, d.convertValueToBase64URLEncoding)
+	s.Step(`^the value "([^"]*)" equals "([^"]*)"$`, d.valuesEqual)
 }

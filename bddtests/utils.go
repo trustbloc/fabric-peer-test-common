@@ -250,6 +250,16 @@ func ResolveVars(val interface{}) (interface{}, error) {
 	}
 }
 
+// ResolveVars resolves all variables within the given expression
+func ResolveVarsInExpression(expr string) (string, error) {
+	resolved, err := ResolveVars(expr)
+	if err != nil {
+		return "", err
+	}
+
+	return resolved.(string), nil
+}
+
 func resolveMap(doc map[string]interface{}) (map[string]interface{}, error) {
 	m := make(map[string]interface{})
 	for field, val := range doc {
