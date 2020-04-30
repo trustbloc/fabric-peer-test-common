@@ -60,8 +60,19 @@ func (p Peers) Shuffle() Peers {
 
 var logger = logging.NewLogger("test-logger")
 
+const (
+	authHeader  = "Authorization"
+	tokenPrefix = "Bearer "
+)
+
 var queryValue string
 var vars = make(map[string]string)
+
+type HTTPPath = string
+type HTTPMethod = string
+type AuthToken = string
+
+var authTokenMap = make(map[HTTPPath]map[HTTPMethod]AuthToken)
 
 type queryInfoResponse struct {
 	Height            string
@@ -1321,7 +1332,14 @@ func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, error) {
 		}
 	}
 
-	resp, err := client.Get(url)
+	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	setAuthTokenHeader(httpReq)
+
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1432,6 +1450,32 @@ func (d *CommonSteps) doHTTPPostFile(url, path string) ([]byte, int, error) {
 	return d.doHTTPPost(url, getFile(path), contentType)
 }
 
+func setAuthTokenHeader(req *http.Request) {
+	logger.Infof("Looking for authorization token for URL [%s]", req.URL.Path)
+
+	authToken := ""
+	parts := strings.Split(req.URL.Path, "/")
+
+	for i := len(parts); i > 1; i-- {
+		basePath := strings.Join(parts[0:i], "/")
+		logger.Infof("... resolving authorization token for path [%s]", basePath)
+
+		authToken = GetAuthToken(basePath, req.Method)
+		if authToken != "" {
+			break
+		}
+	}
+
+	if authToken == "" {
+		logger.Infof("Could not find bearer token for path [%s]", req.URL.Path)
+		return
+	}
+
+	logger.Infof("Setting authorization header for bearer token [%s] for path [%s]", authToken, req.URL.Path)
+
+	req.Header.Set(authHeader, tokenPrefix+authToken)
+}
+
 func (d *CommonSteps) doHTTPPost(url string, data []byte, contentType string) ([]byte, int, error) {
 	client := &http.Client{}
 
@@ -1445,12 +1489,13 @@ func (d *CommonSteps) doHTTPPost(url string, data []byte, contentType string) ([
 
 	logger.Infof("Posting request of content-type [%s] to [%s]: %s", contentType, url, data)
 
-	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(data))
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
 	if err != nil {
 		return nil, 0, err
 	}
 
 	httpReq.Header.Set("Content-Type", contentType)
+	setAuthTokenHeader(httpReq)
 
 	resp, err := client.Do(httpReq)
 	if err != nil {
@@ -1532,6 +1577,58 @@ func (d *CommonSteps) valuesEqual(expr1, expr2 string) error {
 	logger.Infof("Value1 [%s] does not equal value 2 [%s]", value1, value2)
 
 	return errors.Errorf("values [%s] and [%s] are not equal", value1, value2)
+}
+
+func (d *CommonSteps) setVariable(varName, expr string) error {
+	value, err := ResolveVarsInExpression(expr)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Setting var [%s] to [%s]", varName, value)
+
+	SetVar(varName, value)
+
+	return nil
+}
+
+func (d *CommonSteps) setAuthTokenForPath(methodExpr, pathExpr, tokenExpr string) error {
+	path, err := ResolveVarsInExpression(pathExpr)
+	if err != nil {
+		return err
+	}
+
+	method, err := ResolveVarsInExpression(methodExpr)
+	if err != nil {
+		return err
+	}
+
+	token, err := ResolveVarsInExpression(tokenExpr)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Setting authorization bearer token for [%s] (%s) to [%s]", path, method, token)
+
+	SetAuthToken(path, method, token)
+
+	return nil
+}
+
+// SetAuthToken sets the authorization bearer token for the given HTTP path and HTTP method
+func SetAuthToken(path HTTPPath, method HTTPMethod, token AuthToken) {
+	tokensForPath, ok := authTokenMap[path]
+	if !ok {
+		tokensForPath = make(map[HTTPMethod]AuthToken)
+		authTokenMap[path] = tokensForPath
+	}
+
+	tokensForPath[method] = token
+}
+
+// GetAuthToken returns the authorization bearer token for the given HTTP path and HTTP method
+func GetAuthToken(path HTTPPath, method HTTPMethod) AuthToken {
+	return authTokenMap[path][method]
 }
 
 // ClearResponse clears the query response
@@ -1691,6 +1788,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the last (\d+) blocks from the "([^"]*)" channel are displayed$`, d.displayBlocksFromChannel)
 	s.Step(`^the last block from the "([^"]*)" channel is displayed$`, d.displayLastBlockFromChannel)
 	s.Step(`^the response is saved to variable "([^"]*)"$`, d.setVariableFromCCResponse)
+	s.Step(`^variable "([^"]*)" is assigned the value "([^"]*)"$`, d.setVariable)
 	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
 	s.Step(`^the response equals "([^"]*)"$`, d.responseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfCCResponseEquals)
@@ -1713,4 +1811,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the base64-encoded value "([^"]*)" is decoded and saved to variable "([^"]*)"$`, d.decodeValueFromBase64)
 	s.Step(`^the base64-encoded value "([^"]*)" is converted to base64URL-encoding and saved to variable "([^"]*)"$`, d.convertValueToBase64URLEncoding)
 	s.Step(`^the value "([^"]*)" equals "([^"]*)"$`, d.valuesEqual)
+	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 }
