@@ -1281,12 +1281,10 @@ func (d *CommonSteps) DefineCollectionConfig(id, name, policy string, requiredPe
 }
 
 func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) error {
-	resp, code, err := d.doHTTPGet(url)
+	_, code, _, err := HTTPGet(url)
 	if err != nil {
 		return err
 	}
-
-	SetResponse(string(resp))
 
 	if code != expectingCode {
 		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
@@ -1298,12 +1296,10 @@ func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) err
 }
 
 func (d *CommonSteps) httpGet(url string) error {
-	resp, code, err := d.doHTTPGet(url)
+	_, code, _, err := HTTPGet(url)
 	if err != nil {
 		return err
 	}
-
-	SetResponse(string(resp))
 
 	if code != http.StatusOK {
 		return errors.Errorf("received status code %d", code)
@@ -1312,62 +1308,11 @@ func (d *CommonSteps) httpGet(url string) error {
 	return nil
 }
 
-func (d *CommonSteps) doHTTPGet(url string) ([]byte, int, error) {
-	ClearResponse()
-
-	resolved, err := ResolveVars(url)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	url = resolved.(string)
-
-	client := &http.Client{}
-
-	if strings.HasPrefix(url, "https") {
-		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
-		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
-		}
-	}
-
-	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	setAuthTokenHeader(httpReq)
-
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	payload, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, 0, fmt.Errorf("reading response body failed: %s", err)
-	}
-
-	contentType, ok := resp.Header["Content-Type"]
-	if ok && strings.HasPrefix(contentType[0], "image") {
-		logger.Infof("... got HTTP image of type [%s]", contentType)
-	} else if ok {
-		logger.Infof("... got HTTP response of type [%s]:\n%s", contentType[0], payload)
-	} else {
-		logger.Infof("... got HTTP response of unknown type:\n%s", payload)
-	}
-
-	return payload, resp.StatusCode, nil
-}
-
 func (d *CommonSteps) httpPostFile(url, path string) error {
-	resp, code, err := d.doHTTPPostFile(url, path)
+	_, code, _, err := HTTPPostFile(url, path)
 	if err != nil {
 		return err
 	}
-
-	SetResponse(string(resp))
 
 	if code != http.StatusOK {
 		return errors.Errorf("received status code %d", code)
@@ -1377,12 +1322,10 @@ func (d *CommonSteps) httpPostFile(url, path string) error {
 }
 
 func (d *CommonSteps) httpPostFileWithExpectedCode(url, path string, expectingCode int) error {
-	resp, code, err := d.doHTTPPostFile(url, path)
+	_, code, _, err := HTTPPostFile(url, path)
 	if err != nil {
 		return err
 	}
-
-	SetResponse(string(resp))
 
 	if code != expectingCode {
 		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
@@ -1401,12 +1344,10 @@ func (d *CommonSteps) httpPost(url, data, contentType string) error {
 
 	data = resolved.(string)
 
-	resp, code, err := d.doHTTPPost(url, []byte(data), contentType)
+	_, code, _, err := HTTPPost(url, []byte(data), contentType)
 	if err != nil {
 		return err
 	}
-
-	SetResponse(string(resp))
 
 	if code != http.StatusOK {
 		return errors.Errorf("received status code %d", code)
@@ -1423,12 +1364,10 @@ func (d *CommonSteps) httpPostWithExpectedCode(url, data, contentType string, ex
 
 	data = resolved.(string)
 
-	resp, code, err := d.doHTTPPost(url, []byte(data), contentType)
+	_, code, _, err := HTTPPost(url, []byte(data), contentType)
 	if err != nil {
 		return err
 	}
-
-	SetResponse(string(resp))
 
 	if code != expectingCode {
 		return errors.Errorf("expecting status code %d but got %d", expectingCode, code)
@@ -1439,26 +1378,17 @@ func (d *CommonSteps) httpPostWithExpectedCode(url, data, contentType string, ex
 	return nil
 }
 
-func (d *CommonSteps) doHTTPPostFile(url, path string) ([]byte, int, error) {
-	logger.Infof("Uploading file [%s] to [%s]", path, url)
-
-	contentType, err := contentTypeFromFileName(path)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return d.doHTTPPost(url, getFile(path), contentType)
-}
-
-func setAuthTokenHeader(req *http.Request) {
-	logger.Infof("Looking for authorization token for URL [%s]", req.URL.Path)
+// SetAuthTokenHeader sets the bearer token in the Authorization header if one
+// is defined for the given request path.
+func SetAuthTokenHeader(req *http.Request) {
+	logger.Debugf("Looking for authorization token for URL [%s]", req.URL.Path)
 
 	authToken := ""
 	parts := strings.Split(req.URL.Path, "/")
 
 	for i := len(parts); i > 1; i-- {
 		basePath := strings.Join(parts[0:i], "/")
-		logger.Infof("... resolving authorization token for path [%s]", basePath)
+		logger.Debugf("... resolving authorization token for path [%s]", basePath)
 
 		authToken = GetAuthToken(basePath, req.Method)
 		if authToken != "" {
@@ -1474,49 +1404,6 @@ func setAuthTokenHeader(req *http.Request) {
 	logger.Infof("Setting authorization header for bearer token [%s] for path [%s]", authToken, req.URL.Path)
 
 	req.Header.Set(authHeader, tokenPrefix+authToken)
-}
-
-func (d *CommonSteps) doHTTPPost(url string, data []byte, contentType string) ([]byte, int, error) {
-	client := &http.Client{}
-
-	if strings.HasPrefix(url, "https") {
-		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
-		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
-		}
-	}
-
-	logger.Infof("Posting request of content-type [%s] to [%s]: %s", contentType, url, data)
-
-	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
-	if err != nil {
-		return nil, 0, err
-	}
-
-	httpReq.Header.Set("Content-Type", contentType)
-	setAuthTokenHeader(httpReq)
-
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	payload, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, resp.StatusCode, err
-	}
-
-	retContentType, ok := resp.Header["Content-Type"]
-	if ok && strings.HasPrefix(retContentType[0], "image") {
-		logger.Infof("... got HTTP image of type [%s]", contentType)
-	} else if ok {
-		logger.Infof("... got HTTP response of type [%s]:\n%s", contentType[0], payload)
-	} else {
-		logger.Infof("... got HTTP response of unknown type:\n%s", payload)
-	}
-
-	return payload, resp.StatusCode, nil
 }
 
 func (d *CommonSteps) decodeValueFromBase64(value, varName string) error {
@@ -1629,6 +1516,13 @@ func SetAuthToken(path HTTPPath, method HTTPMethod, token AuthToken) {
 // GetAuthToken returns the authorization bearer token for the given HTTP path and HTTP method
 func GetAuthToken(path HTTPPath, method HTTPMethod) AuthToken {
 	return authTokenMap[path][method]
+}
+
+// ClearState clears all global variables
+func ClearState() {
+	queryValue = ""
+	vars = make(map[string]string)
+	authTokenMap = make(map[HTTPPath]map[HTTPMethod]AuthToken)
 }
 
 // ClearResponse clears the query response
@@ -1750,6 +1644,121 @@ func contentTypeFromFileName(fileName string) (string, error) {
 	}
 
 	return contentType, nil
+}
+
+// HTTPGet sends a GET request to the given URL
+func HTTPGet(url string) ([]byte, int, http.Header, error) {
+	ClearResponse()
+
+	resolved, err := ResolveVars(url)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	url = resolved.(string)
+
+	client := &http.Client{}
+
+	if strings.HasPrefix(url, "https") {
+		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
+		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
+		}
+	}
+
+	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	SetAuthTokenHeader(httpReq)
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	payload, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, 0, resp.Header, fmt.Errorf("reading response body failed: %s", err)
+	}
+
+	PrintResponse(resp.StatusCode, payload, resp.Header)
+
+	SetResponse(string(payload))
+
+	return payload, resp.StatusCode, resp.Header, nil
+}
+
+// HTTPPost posts the given data to the given URL
+func HTTPPost(url string, data []byte, contentType string) ([]byte, int, http.Header, error) {
+	ClearResponse()
+
+	client := &http.Client{}
+
+	if strings.HasPrefix(url, "https") {
+		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
+		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
+		}
+	}
+
+	logger.Infof("Posting request of content-type [%s] to [%s]: %s", contentType, url, data)
+
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	httpReq.Header.Set("Content-Type", contentType)
+
+	SetAuthTokenHeader(httpReq)
+
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	payload, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, resp.Header, err
+	}
+
+	PrintResponse(resp.StatusCode, payload, resp.Header)
+
+	SetResponse(string(payload))
+
+	return payload, resp.StatusCode, resp.Header, nil
+}
+
+func PrintResponse(statusCode int, payload []byte, header http.Header) {
+	respContentType, ok := header["Content-Type"]
+	if ok {
+		switch {
+		case strings.HasPrefix(respContentType[0], "image/"):
+			logger.Infof("Received status code %d and an image of type [%s]", statusCode, respContentType[0])
+		case strings.HasPrefix(respContentType[0], "text/"):
+			logger.Infof("Received status code %d and a text response: [%s]", statusCode, payload)
+		default:
+			logger.Infof("Received status code %d and a response of type [%s]:\n%s", statusCode, respContentType[0], payload)
+		}
+	} else {
+		logger.Infof("Received status code %d and a response with no Content-Type:\n%s", statusCode, payload)
+	}
+}
+
+// HTTPPostFile posts the contents of the given file to the given URL
+func HTTPPostFile(url, path string) ([]byte, int, http.Header, error) {
+	logger.Infof("Uploading file [%s] to [%s]", path, url)
+
+	contentType, err := contentTypeFromFileName(path)
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	return HTTPPost(url, getFile(path), contentType)
 }
 
 // RegisterSteps register steps
