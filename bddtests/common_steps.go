@@ -7,8 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package bddtests
 
 import (
-	"bytes"
-	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -18,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -1618,20 +1617,6 @@ func NewChaincodePolicy(bddCtx *BDDContext, ccPolicy, channelID string) (*fabric
 	return cauthdsl.SignedByAnyMember(mspIDs), nil
 }
 
-func getFile(path string) []byte {
-	r, err := os.Open(path)
-	if err != nil {
-		panic(err)
-	}
-
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		panic(err)
-	}
-
-	return data
-}
-
 func contentTypeFromFileName(fileName string) (string, error) {
 	p := strings.LastIndex(fileName, ".")
 	if p == -1 {
@@ -1650,87 +1635,36 @@ func contentTypeFromFileName(fileName string) (string, error) {
 func HTTPGet(url string) ([]byte, int, http.Header, error) {
 	ClearResponse()
 
-	resolved, err := ResolveVars(url)
+	client := &HTTPClient{}
+
+	payload, statusCode, header, err := client.Get(url)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	url = resolved.(string)
-
-	client := &http.Client{}
-
-	if strings.HasPrefix(url, "https") {
-		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
-		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
-		}
-	}
-
-	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, 0, nil, err
-	}
-
-	SetAuthTokenHeader(httpReq)
-
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return nil, 0, nil, err
-	}
-
-	payload, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, 0, resp.Header, fmt.Errorf("reading response body failed: %s", err)
-	}
-
-	PrintResponse(resp.StatusCode, payload, resp.Header)
+	PrintResponse(statusCode, payload, header)
 
 	SetResponse(string(payload))
 
-	return payload, resp.StatusCode, resp.Header, nil
+	return payload, statusCode, header, nil
 }
 
 // HTTPPost posts the given data to the given URL
-func HTTPPost(url string, data []byte, contentType string) ([]byte, int, http.Header, error) {
+func HTTPPost(url string, content []byte, contentType string) ([]byte, int, http.Header, error) {
 	ClearResponse()
 
-	client := &http.Client{}
+	client := &HTTPClient{}
 
-	if strings.HasPrefix(url, "https") {
-		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
-		// TODO !!!!!!!remove InsecureSkipVerify after configure tls for http client
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint: gosec
-		}
-	}
-
-	logger.Infof("Posting request of content-type [%s] to [%s]: %s", contentType, url, data)
-
-	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(data))
+	payload, statusCode, header, err := client.Post(url, content, contentType)
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	httpReq.Header.Set("Content-Type", contentType)
-
-	SetAuthTokenHeader(httpReq)
-
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return nil, 0, nil, err
-	}
-
-	payload, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, resp.StatusCode, resp.Header, err
-	}
-
-	PrintResponse(resp.StatusCode, payload, resp.Header)
+	PrintResponse(statusCode, payload, header)
 
 	SetResponse(string(payload))
 
-	return payload, resp.StatusCode, resp.Header, nil
+	return payload, statusCode, header, nil
 }
 
 func PrintResponse(statusCode int, payload []byte, header http.Header) {
@@ -1758,7 +1692,12 @@ func HTTPPostFile(url, path string) ([]byte, int, http.Header, error) {
 		return nil, 0, nil, err
 	}
 
-	return HTTPPost(url, getFile(path), contentType)
+	contents, err := ioutil.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return nil, 0, nil, err
+	}
+
+	return HTTPPost(url, contents, contentType)
 }
 
 // RegisterSteps register steps
