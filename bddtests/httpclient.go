@@ -28,6 +28,7 @@ func (c *HTTPClient) Get(url string) ([]byte, int, http.Header, error) {
 	url = resolved.(string)
 
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
 
 	if strings.HasPrefix(url, "https") {
 		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
@@ -66,6 +67,7 @@ func (c *HTTPClient) Get(url string) ([]byte, int, http.Header, error) {
 // Post posts the given data to the given URL
 func (c *HTTPClient) Post(url string, data []byte, contentType string) ([]byte, int, http.Header, error) {
 	client := &http.Client{}
+	defer client.CloseIdleConnections()
 
 	if strings.HasPrefix(url, "https") {
 		// TODO add tls config https://github.com/trustbloc/fabric-peer-test-common/issues/51
