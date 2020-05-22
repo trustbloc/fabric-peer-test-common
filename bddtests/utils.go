@@ -138,6 +138,8 @@ func newPolicy(policyString string) (*fabricCommon.SignaturePolicyEnvelope, erro
 //
 func Resolve(vars map[string]string, arg string) (string, error) {
 	for {
+		logger.Infof("Resolving vars for %s", arg)
+
 		str, err := doResolve(vars, arg)
 		if err != nil {
 			return arg, err
@@ -172,10 +174,12 @@ func doResolve(vars map[string]string, arg string) (string, error) {
 		return arg, nil
 	}
 
-	close := strings.Index(arg, "}")
+	close := strings.Index(arg[open+2:], "}")
 	if close == -1 {
 		return arg, errors.Errorf("expecting } for arg '%s'", arg)
 	}
+
+	close = close + open + 2
 
 	// Check for array
 	varName := arg[open+2 : close]
