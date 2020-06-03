@@ -784,6 +784,27 @@ func (d *CommonSteps) jsonPathOfCCResponseContains(path, expected string) error 
 	return fmt.Errorf("JSON path resolves to [%s] which is not the expected value [%s]", r.Array(), expected)
 }
 
+func (d *CommonSteps) jsonPathOfResponseNotContains(path, notExpected string) error {
+	resolved, err := ResolveVars(notExpected)
+	if err != nil {
+		return err
+	}
+
+	notExpected = resolved.(string)
+
+	r := gjson.Get(queryValue, path)
+
+	logger.Infof("Path [%s] of JSON %s resolves to %s", path, queryValue, r.Raw)
+
+	for _, a := range r.Array() {
+		if a.Str == notExpected {
+			return fmt.Errorf("JSON path resolves to [%s] which contains value [%s]", r.Array(), notExpected)
+		}
+	}
+
+	return nil
+}
+
 func (d *CommonSteps) jsonPathOfResponseSavedToVar(path, varName string) error {
 	r := gjson.Get(queryValue, path)
 
@@ -1744,6 +1765,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the JSON path "([^"]*)" of the boolean response equals "([^"]*)"$`, d.jsonPathOfBoolResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response has (\d+) items$`, d.jsonPathOfCCHasNumItems)
 	s.Step(`^the JSON path "([^"]*)" of the response contains "([^"]*)"$`, d.jsonPathOfCCResponseContains)
+	s.Step(`^the JSON path "([^"]*)" of the response does not contain "([^"]*)"$`, d.jsonPathOfResponseNotContains)
 	s.Step(`^the JSON path "([^"]*)" of the response is saved to variable "([^"]*)"$`, d.jsonPathOfResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response is saved to variable "([^"]*)"$`, d.jsonPathOfNumericResponseSavedToVar)
 	s.Step(`^the JSON path "([^"]*)" of the boolean response is saved to variable "([^"]*)"$`, d.jsonPathOfBoolResponseSavedToVar)
