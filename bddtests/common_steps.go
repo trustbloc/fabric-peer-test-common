@@ -490,7 +490,42 @@ func (d *CommonSteps) querySystemCC(ccID, args, orgID, channelID string) error {
 	if err != nil {
 		return fmt.Errorf("QueryCCWithArgs return error: %s", err)
 	}
+
 	logger.Debugf("QueryCCWithArgs return value: [%s]", queryValue)
+
+	return nil
+}
+
+func (d *CommonSteps) querySystemCCWithError(ccID, args, orgID, channelID, expectedError string) error {
+	queryValue = ""
+
+	peersConfig, ok := d.BDDContext.clientConfig.PeersConfig(orgID)
+	if !ok {
+		return fmt.Errorf("could not get peers config for org [%s]", orgID)
+	}
+
+	serverHostOverride := ""
+	if str, ok := peersConfig[0].GRPCOptions["ssl-target-name-override"].(string); ok {
+		serverHostOverride = str
+	}
+
+	argsArray, err := ResolveAllVars(args)
+	if err != nil {
+		return err
+	}
+
+	queryValue, err = d.QueryCCWithArgs(true, ccID, channelID, argsArray, nil,
+		[]*PeerConfig{{Config: peersConfig[0], OrgID: orgID, MspID: d.BDDContext.peersMspID[serverHostOverride], PeerID: serverHostOverride}}...)
+	if err == nil {
+		return errors.Errorf("expecting error [%s] but got no error", expectedError)
+	}
+
+	logger.Infof("querySystemCCWithError returned error: [%s]", err)
+
+	if !strings.Contains(err.Error(), expectedError) {
+		return errors.Errorf("expecting error [%s] but got [%s]", expectedError, err)
+	}
+
 	return nil
 }
 
@@ -1733,6 +1768,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on a single peer in the "([^"]*)" org on the "([^"]*)" channel$`, d.queryCConSinglePeerInOrg)
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on peers "([^"]*)" on the "([^"]*)" channel$`, d.queryCConTargetPeers)
 	s.Step(`^client queries system chaincode "([^"]*)" with args "([^"]*)" on org "([^"]*)" peer on the "([^"]*)" channel$`, d.querySystemCC)
+	s.Step(`^client queries system chaincode "([^"]*)" with args "([^"]*)" on org "([^"]*)" peer on the "([^"]*)" channel then the error response should contain "([^"]*)"$`, d.querySystemCCWithError)
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel$`, d.queryCC)
 	s.Step(`^client queries chaincode "([^"]*)" with args "([^"]*)" on the "([^"]*)" channel then the error response should contain "([^"]*)"$`, d.queryCCWithError)
 	s.Step(`^response from "([^"]*)" to client contains value "([^"]*)"$`, d.containsInQueryValue)
