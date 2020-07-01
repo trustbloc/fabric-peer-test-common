@@ -325,7 +325,10 @@ func (d *CommonSteps) InvokeCCWithArgs(ccID, channelID string, targets []*PeerCo
 func (d *CommonSteps) invokeCCWithArgs(ccID, channelID string, targets []*PeerConfig, args []string, transientData map[string][]byte, userType string) (channel.Response, error) {
 	var peers []fabApi.Peer
 
+	orgID := d.BDDContext.orgs[0]
+
 	for _, target := range targets {
+		orgID = targets[0].OrgID
 		targetPeer, err := d.BDDContext.OrgUserContext(targets[0].OrgID, ADMIN).InfraProvider().CreatePeerFromConfig(&fabApi.NetworkPeer{PeerConfig: target.Config})
 		if err != nil {
 			return channel.Response{}, errors.WithMessage(err, "NewPeer failed")
@@ -333,7 +336,7 @@ func (d *CommonSteps) invokeCCWithArgs(ccID, channelID string, targets []*PeerCo
 		peers = append(peers, targetPeer)
 	}
 
-	chClient, err := d.BDDContext.OrgChannelClient(d.BDDContext.orgs[0], userType, channelID)
+	chClient, err := d.BDDContext.OrgChannelClient(orgID, userType, channelID)
 	if err != nil {
 		return channel.Response{}, fmt.Errorf("Failed to create new channel client: %s", err)
 	}
