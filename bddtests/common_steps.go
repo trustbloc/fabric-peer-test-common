@@ -37,7 +37,7 @@ import (
 	mspApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/msp"
 	contextImpl "github.com/hyperledger/fabric-sdk-go/pkg/context"
 	"github.com/hyperledger/fabric-sdk-go/pkg/fab/ccpackager/gopackager"
-	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/cauthdsl"
+	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/policydsl"
 	"github.com/pkg/errors"
 	"github.com/tidwall/gjson"
 )
@@ -1673,7 +1673,7 @@ func NewChaincodePolicy(bddCtx *BDDContext, ccPolicy, channelID string) (*fabric
 		mspIDs = append(mspIDs, orgConfig.MSPID)
 	}
 	logger.Infof("Returning SignedByAnyMember policy for MSPs %s", mspIDs)
-	return cauthdsl.SignedByAnyMember(mspIDs), nil
+	return policydsl.SignedByAnyMember(mspIDs), nil
 }
 
 func contentTypeFromFileName(fileName string) (string, error) {
