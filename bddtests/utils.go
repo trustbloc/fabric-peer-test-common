@@ -18,7 +18,7 @@ import (
 	"github.com/hyperledger/fabric-sdk-go/pkg/common/errors/retry"
 	fabApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	mspApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/msp"
-	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/cauthdsl"
+	"github.com/hyperledger/fabric-sdk-go/third_party/github.com/hyperledger/fabric/common/policydsl"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -109,7 +109,7 @@ func peersAsString(peers []fabApi.Peer) string {
 }
 
 func newPolicy(policyString string) (*fabricCommon.SignaturePolicyEnvelope, error) {
-	ccPolicy, err := cauthdsl.FromString(policyString)
+	ccPolicy, err := policydsl.FromString(policyString)
 	if err != nil {
 		return nil, errors.Errorf("invalid chaincode policy [%s]: %s", policyString, err)
 	}
