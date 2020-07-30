@@ -1560,6 +1560,55 @@ func (d *CommonSteps) setAuthTokenForPath(methodExpr, pathExpr, tokenExpr string
 	return nil
 }
 
+func (d *CommonSteps) getOrgPeers(orgIDs, channelID string) ([]fabApi.Peer, string, error) {
+	peers := d.OrgPeers(orgIDs, channelID)
+	if len(peers) == 0 {
+		return nil, "", errors.Errorf("no peers found for orgs [%s]", orgIDs)
+	}
+
+	var orgID string
+	peersByOrg := make(map[string]fabApi.Peer)
+
+	for _, pconfig := range peers {
+		orgID = pconfig.OrgID
+
+		if _, ok := peersByOrg[orgID]; ok {
+			continue
+		}
+
+		sdkPeer, err := d.BDDContext.OrgUserContext(orgID, ADMIN).InfraProvider().CreatePeerFromConfig(&fabApi.NetworkPeer{PeerConfig: pconfig.Config})
+		if err != nil {
+			return nil, "", errors.WithMessage(err, "NewPeer failed")
+		}
+
+		peersByOrg[orgID] = sdkPeer
+	}
+
+	var sdkPeers []fabApi.Peer
+	for _, p := range peersByOrg {
+		sdkPeers = append(sdkPeers, p)
+	}
+
+	return sdkPeers, orgID, nil
+}
+
+func (d *CommonSteps) getCollectionConfig(channelID, ccID, collectionNames string) ([]*pb.CollectionConfig, error) {
+	var collConfig []*pb.CollectionConfig
+	if collectionNames != "" {
+		// Define the private data collection policy config
+		for _, collName := range strings.Split(collectionNames, ",") {
+			logger.Infof("Configuring collection (%s) for CCID=%s", collName, ccID)
+			c, err := d.newCollectionConfig(channelID, collName)
+			if err != nil {
+				return nil, err
+			}
+			collConfig = append(collConfig, c)
+		}
+	}
+
+	return collConfig, nil
+}
+
 // SetAuthToken sets the authorization bearer token for the given HTTP path and HTTP method
 func SetAuthToken(path HTTPPath, method HTTPMethod, token AuthToken) {
 	tokensForPath, ok := authTokenMap[path]
@@ -1821,4 +1870,13 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the base64-encoded value "([^"]*)" is converted to base64URL-encoding and saved to variable "([^"]*)"$`, d.convertValueToBase64URLEncoding)
 	s.Step(`^the value "([^"]*)" equals "([^"]*)"$`, d.valuesEqual)
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
+	s.Step(`^chaincode "([^"]*)" is installed from path "([^"]*)" to all peers$`, d.lifecycleInstallCCToAllPeers)
+	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.approveCCByOrg)
+	s.Step(`^chaincode "([^"]*)", version "([^"]*)", sequence (\d+) is committed by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.commitCCByOrg)
+	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is checked for readiness by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.checkCommitReadinessByOrg)
+	s.Step(`^peer "([^"]*)" is queried for installed chaincodes$`, d.queryInstalledCC)
+	s.Step(`^committed chaincode "([^"]*)" is queried by orgs "([^"]*)" on the "([^"]*)" channel$`, d.queryCommittedCCByOrg)
+	s.Step(`^all committed chaincodes are queried by orgs "([^"]*)" on the "([^"]*)" channel$`, d.queryCommittedCCsByOrg)
+	s.Step(`^peer "([^"]*)" is queried for approved chaincode "([^"]*)" and sequence (\d+) on the "([^"]*)" channel$`, d.queryApprovedCCByPeer)
+	s.Step(`^peer "([^"]*)" is queried for installed chaincode package "([^"]*)"$`, d.queryInstalledCCPackage)
 }
