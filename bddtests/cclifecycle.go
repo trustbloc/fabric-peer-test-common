@@ -20,11 +20,15 @@ import (
 )
 
 func (d *CommonSteps) lifecycleInstallCCToAllPeers(ccLabel, ccPath string) error {
-	return d.doLifecycleInstallCCToOrg(ccPath, ccLabel, "", "")
+	return d.doLifecycleInstallCCToOrg(ccPath, ccLabel, "")
 }
 
-func (d *CommonSteps) doLifecycleInstallCCToOrg(ccPath, ccLabel, orgIDs, blackListRegex string) error {
-	logger.Infof("Preparing to install chaincode from path [%s] with label [%s] to orgs [%s] - Blacklisted peers: [%s]", ccPath, ccLabel, orgIDs, blackListRegex)
+func (d *CommonSteps) doLifecycleInstallCCToOrg(ccPath, ccLabel, orgIDs string) error {
+	if err := ResolveVarsInExpression(&ccPath, &ccLabel, &orgIDs); err != nil {
+		return err
+	}
+
+	logger.Infof("Preparing to install chaincode from path [%s] with label [%s] to orgs [%s]", ccPath, ccLabel, orgIDs)
 
 	var oIDs []string
 	if orgIDs != "" {
@@ -33,8 +37,10 @@ func (d *CommonSteps) doLifecycleInstallCCToOrg(ccPath, ccLabel, orgIDs, blackLi
 		oIDs = d.BDDContext.orgs
 	}
 
+	var packageID string
+
 	for _, orgID := range oIDs {
-		targets, err := d.getLocalTargets(orgID, blackListRegex)
+		targets, err := d.getLocalTargets(orgID, "")
 		if err != nil {
 			return err
 		}
@@ -69,14 +75,26 @@ func (d *CommonSteps) doLifecycleInstallCCToOrg(ccPath, ccLabel, orgIDs, blackLi
 		}
 
 		for _, r := range responses {
-			logger.Infof("Got response from [%s]: Status: %d, Package ID [%s]", r.Target, r.Status, r.PackageID)
+			if packageID != "" && packageID != r.PackageID {
+				return errors.Errorf("PackageID [%s] does not match [%s]", r.PackageID, packageID)
+			}
+
+			packageID = r.PackageID
 		}
 	}
+
+	logger.Infof("Setting response from install chaincode: %s", packageID)
+
+	SetResponse(packageID)
 
 	return nil
 }
 
 func (d *CommonSteps) queryInstalledCCPackage(peerID, packageID string) error {
+	if err := ResolveVarsInExpression(&peerID, &packageID); err != nil {
+		return err
+	}
+
 	logger.Infof("Preparing to query installed chaincode package [%s] on peer [%s]", packageID, peerID)
 
 	if peerID == "" {
@@ -115,6 +133,10 @@ func (d *CommonSteps) queryInstalledCCPackage(peerID, packageID string) error {
 }
 
 func (d *CommonSteps) queryInstalledCC(peerID string) error {
+	if err := ResolveVarsInExpression(&peerID); err != nil {
+		return err
+	}
+
 	logger.Infof("Preparing to query installed chaincodes on peer [%s]", peerID)
 
 	if peerID == "" {
@@ -160,8 +182,29 @@ func (d *CommonSteps) approveCCByOrg(ccID, ccVersion, packageID string, sequence
 	return d.doApproveCCByOrg(ccID, ccVersion, packageID, sequence, orgIDs, channelID, ccPolicy, collectionNames, false)
 }
 
+func (d *CommonSteps) approveCCByOrgWithError(ccID, ccVersion, packageID string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, expectedError string) error {
+	if err := ResolveVarsInExpression(&expectedError); err != nil {
+		return err
+	}
+
+	err := d.doApproveCCByOrg(ccID, ccVersion, packageID, sequence, orgIDs, channelID, ccPolicy, collectionNames, false)
+	if err == nil {
+		return errors.Errorf("expecting error [%s] but got no error", expectedError)
+	}
+
+	if !strings.Contains(err.Error(), expectedError) {
+		return errors.Errorf("expecting error [%s] but got [%s]", expectedError, err)
+	}
+
+	return nil
+}
+
 func (d *CommonSteps) doApproveCCByOrg(ccID, ccVersion, packageID string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, initRequired bool) error {
-	logger.Infof("Preparing to approve chaincode [%s] version [%s] on orgs [%s] on channel [%s] with CC policy [%s] and collectionPolicy [%s]", ccID, orgIDs, channelID, ccPolicy, collectionNames)
+	if err := ResolveVarsInExpression(&ccID, &ccVersion, &packageID, &orgIDs, &channelID, &ccPolicy, &collectionNames); err != nil {
+		return err
+	}
+
+	logger.Infof("Preparing to approve chaincode [%s] version [%s] with package ID [%s] on orgs [%s] on channel [%s] with CC policy [%s] and collectionPolicy [%s]", ccID, ccVersion, packageID, orgIDs, channelID, ccPolicy, collectionNames)
 
 	sdkPeers, orgID, err := d.getOrgPeers(orgIDs, channelID)
 	if err != nil {
@@ -205,6 +248,10 @@ func (d *CommonSteps) doApproveCCByOrg(ccID, ccVersion, packageID string, sequen
 }
 
 func (d *CommonSteps) queryApprovedCCByPeer(peerID, ccID string, sequence int64, channelID string) error {
+	if err := ResolveVarsInExpression(&peerID, &ccID, &channelID); err != nil {
+		return err
+	}
+
 	logger.Infof("Preparing to query approved chaincode definition of chaincode [%s] with sequence [%d] on peer [%s]", ccID, sequence, peerID)
 
 	if peerID == "" {
@@ -258,6 +305,10 @@ func (d *CommonSteps) checkCommitReadinessByOrg(ccID, ccVersion, packageID strin
 }
 
 func (d *CommonSteps) doCheckCommitReadinessByOrg(ccID, ccVersion, packageID string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, initRequired bool) error {
+	if err := ResolveVarsInExpression(&ccID, &ccVersion, &packageID, &orgIDs, &channelID, &ccPolicy, &collectionNames); err != nil {
+		return err
+	}
+
 	logger.Infof("Preparing to check commit readiness of chaincode [%s] version [%s] on orgs [%s] on channel [%s] with CC policy [%s] and collectionPolicy [%s]", ccID, orgIDs, channelID, ccPolicy, collectionNames)
 
 	chaincodePolicy, err := d.newChaincodePolicy(ccPolicy, channelID)
@@ -315,7 +366,11 @@ func (d *CommonSteps) commitCCByOrg(ccID, ccVersion string, sequence int64, orgI
 }
 
 func (d *CommonSteps) doCommitCCByOrg(ccID, ccVersion string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, initRequired bool) error {
-	logger.Infof("Preparing to commit chaincode [%s] version [%s] on orgs [%s] on channel [%s] with CC policy [%s] and collectionPolicy [%s]", ccID, orgIDs, channelID, ccPolicy, collectionNames)
+	if err := ResolveVarsInExpression(&ccID, &ccVersion, &orgIDs, &channelID, &ccPolicy, &collectionNames); err != nil {
+		return err
+	}
+
+	logger.Infof("Preparing to commit chaincode [%s] version [%s] sequence [%d] on orgs [%s] on channel [%s] with CC policy [%s] and collectionPolicy [%s]", ccID, ccVersion, sequence, orgIDs, channelID, ccPolicy, collectionNames)
 
 	sdkPeers, orgID, err := d.getOrgPeers(orgIDs, channelID)
 	if err != nil {
@@ -366,6 +421,10 @@ func (d *CommonSteps) queryCommittedCCsByOrg(orgIDs, channelID string) error {
 }
 
 func (d *CommonSteps) doQueryCommittedCCByOrg(ccID, orgIDs, channelID string) error {
+	if err := ResolveVarsInExpression(&ccID, &orgIDs, &channelID); err != nil {
+		return err
+	}
+
 	logger.Infof("Preparing to query committed chaincode [%s] on orgs [%s] on channel [%s]", ccID, orgIDs, channelID)
 
 	sdkPeers, orgID, err := d.getOrgPeers(orgIDs, channelID)
@@ -400,4 +459,34 @@ func (d *CommonSteps) doQueryCommittedCCByOrg(ccID, orgIDs, channelID string) er
 	logger.Infof("Chaincode definitions: %s", queryValue)
 
 	return nil
+}
+
+func (d *CommonSteps) approveAndCommitCCByOrg(ccID, ccVersion, packageID string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string) error {
+	return d.doApproveAndCommitCCByOrg(ccID, ccVersion, packageID, sequence, orgIDs, channelID, ccPolicy, collectionNames, false)
+}
+
+func (d *CommonSteps) doApproveAndCommitCCByOrg(ccID, ccVersion, packageID string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, initRequired bool) error {
+	for _, orgID := range strings.Split(orgIDs, ",") {
+		if err := d.doApproveCCByOrg(ccID, ccVersion, packageID, sequence, orgID, channelID, ccPolicy, collectionNames, false); err != nil {
+			return err
+		}
+	}
+
+	var err error
+	for i := 0; i < 5; i++ {
+		err = d.doCommitCCByOrg(ccID, ccVersion, sequence, orgIDs, channelID, ccPolicy, collectionNames, initRequired)
+		if err == nil {
+			logger.Infof("Successfully committed")
+
+			return nil
+		}
+
+		logger.Infof("Not ready to commit: %s", err)
+
+		time.Sleep(time.Second)
+
+		continue
+	}
+
+	return err
 }

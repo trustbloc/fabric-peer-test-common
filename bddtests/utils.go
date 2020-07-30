@@ -254,14 +254,32 @@ func ResolveVars(val interface{}) (interface{}, error) {
 	}
 }
 
-// ResolveVars resolves all variables within the given expression
-func ResolveVarsInExpression(expr string) (string, error) {
-	resolved, err := ResolveVars(expr)
-	if err != nil {
-		return "", err
+// ResolveVars resolves all variables within the given expressions
+// Example:
+//
+// Given:
+//   var1 = "variable1"
+//   var2 = "variable2"
+//
+// value1 := "This is ${var1}"
+// value2 := "This is ${var2}
+//
+// err := ResolveVarsInExpression(&value1, &value2)
+//
+// Result:
+//   value1 = "This is variable1"
+//   value2 = "This is variable2"
+func ResolveVarsInExpression(expressions ...*string) error {
+	for _, expr := range expressions {
+		resolved, err := ResolveVars(*expr)
+		if err != nil {
+			return err
+		}
+
+		*expr = resolved.(string)
 	}
 
-	return resolved.(string), nil
+	return nil
 }
 
 func resolveMap(doc map[string]interface{}) (map[string]interface{}, error) {

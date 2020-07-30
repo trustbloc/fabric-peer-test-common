@@ -1465,26 +1465,24 @@ func SetAuthTokenHeader(req *http.Request) {
 }
 
 func (d *CommonSteps) decodeValueFromBase64(value, varName string) error {
-	resolvedValue, err := ResolveVarsInExpression(value)
-	if err != nil {
+	if err := ResolveVarsInExpression(&value); err != nil {
 		return err
 	}
 
-	decodedBytes, err := base64.StdEncoding.DecodeString(resolvedValue)
+	decodedBytes, err := base64.StdEncoding.DecodeString(value)
 	if err != nil {
-		return errors.Errorf("value [%s] is not a base64-encoded string: %s", resolvedValue, err)
+		return errors.Errorf("value [%s] is not a base64-encoded string: %s", value, err)
 	}
 
 	SetVar(varName, string(decodedBytes))
 
-	logger.Infof("Decoded the base64-encoded value [%s] to [%s] and saved to variable [%s]", resolvedValue, decodedBytes, varName)
+	logger.Infof("Decoded the base64-encoded value [%s] to [%s] and saved to variable [%s]", value, decodedBytes, varName)
 
 	return nil
 }
 
-func (d *CommonSteps) convertValueToBase64URLEncoding(expr, varName string) error {
-	value, err := ResolveVarsInExpression(expr)
-	if err != nil {
+func (d *CommonSteps) convertValueToBase64URLEncoding(value, varName string) error {
+	if err := ResolveVarsInExpression(&value); err != nil {
 		return err
 	}
 
@@ -1502,14 +1500,8 @@ func (d *CommonSteps) convertValueToBase64URLEncoding(expr, varName string) erro
 	return nil
 }
 
-func (d *CommonSteps) valuesEqual(expr1, expr2 string) error {
-	value1, err := ResolveVarsInExpression(expr1)
-	if err != nil {
-		return err
-	}
-
-	value2, err := ResolveVarsInExpression(expr2)
-	if err != nil {
+func (d *CommonSteps) valuesEqual(value1, value2 string) error {
+	if err := ResolveVarsInExpression(&value1, &value2); err != nil {
 		return err
 	}
 
@@ -1524,9 +1516,8 @@ func (d *CommonSteps) valuesEqual(expr1, expr2 string) error {
 	return errors.Errorf("values [%s] and [%s] are not equal", value1, value2)
 }
 
-func (d *CommonSteps) setVariable(varName, expr string) error {
-	value, err := ResolveVarsInExpression(expr)
-	if err != nil {
+func (d *CommonSteps) setVariable(varName, value string) error {
+	if err := ResolveVarsInExpression(&value); err != nil {
 		return err
 	}
 
@@ -1537,19 +1528,8 @@ func (d *CommonSteps) setVariable(varName, expr string) error {
 	return nil
 }
 
-func (d *CommonSteps) setAuthTokenForPath(methodExpr, pathExpr, tokenExpr string) error {
-	path, err := ResolveVarsInExpression(pathExpr)
-	if err != nil {
-		return err
-	}
-
-	method, err := ResolveVarsInExpression(methodExpr)
-	if err != nil {
-		return err
-	}
-
-	token, err := ResolveVarsInExpression(tokenExpr)
-	if err != nil {
+func (d *CommonSteps) setAuthTokenForPath(method, path, token string) error {
+	if err := ResolveVarsInExpression(&method, &path, &token); err != nil {
 		return err
 	}
 
@@ -1872,6 +1852,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 	s.Step(`^chaincode "([^"]*)" is installed from path "([^"]*)" to all peers$`, d.lifecycleInstallCCToAllPeers)
 	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.approveCCByOrg)
+	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)" then the error response should contain "([^"]*)"$`, d.approveCCByOrgWithError)
 	s.Step(`^chaincode "([^"]*)", version "([^"]*)", sequence (\d+) is committed by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.commitCCByOrg)
 	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is checked for readiness by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.checkCommitReadinessByOrg)
 	s.Step(`^peer "([^"]*)" is queried for installed chaincodes$`, d.queryInstalledCC)
@@ -1879,4 +1860,5 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^all committed chaincodes are queried by orgs "([^"]*)" on the "([^"]*)" channel$`, d.queryCommittedCCsByOrg)
 	s.Step(`^peer "([^"]*)" is queried for approved chaincode "([^"]*)" and sequence (\d+) on the "([^"]*)" channel$`, d.queryApprovedCCByPeer)
 	s.Step(`^peer "([^"]*)" is queried for installed chaincode package "([^"]*)"$`, d.queryInstalledCCPackage)
+	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved and committed by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.approveAndCommitCCByOrg)
 }
