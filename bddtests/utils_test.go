@@ -113,3 +113,16 @@ func TestResolveVars(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, `[{"key1":"value1"},{"key2":"value2"}]`, s)
 }
+
+func TestResolveVarsInExpression(t *testing.T) {
+	SetVar("v1", "value1")
+	SetVar("v2", "value2")
+
+	val1 := "v1 = ${v1}"
+	val2 := "v2 = ${v2}"
+
+	err := ResolveVarsInExpression(&val1, &val2)
+	require.NoError(t, err)
+	require.Equal(t, "v1 = value1", val1)
+	require.Equal(t, "v2 = value2", val2)
+}
