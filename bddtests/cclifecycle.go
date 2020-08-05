@@ -60,7 +60,21 @@ func (d *CommonSteps) doLifecycleInstallCCToOrg(ccPath, ccLabel, orgIDs string) 
 			return errors.Errorf("no targets for chaincode [%s]", ccLabel)
 		}
 
-		logger.Infof("... installing chaincode [%s] from path [%s] to targets %s", ccLabel, ccPath, targets)
+		// Filter out the targets that already have the package installed
+		var filteredTargets []string
+		for _, target := range targets {
+			if err := d.queryInstalledCCPackage(target, packageID); err != nil {
+				filteredTargets = append(filteredTargets, target)
+			}
+		}
+
+		if len(filteredTargets) == 0 {
+			logger.Infof("... not installing chaincode [%s] to any peer in org [%s] since the package is already installed on all peers", ccLabel, orgID)
+
+			continue
+		}
+
+		logger.Infof("... installing chaincode [%s] from path [%s] to targets %s", ccLabel, ccPath, filteredTargets)
 
 		responses, err := resMgmtClient.LifecycleInstallCC(
 			resmgmt.LifecycleInstallCCRequest{
@@ -68,7 +82,7 @@ func (d *CommonSteps) doLifecycleInstallCCToOrg(ccPath, ccLabel, orgIDs string) 
 				Package: pkgBytes,
 			},
 			resmgmt.WithRetry(resMgmtRetryOpts),
-			resmgmt.WithTargetEndpoints(targets...),
+			resmgmt.WithTargetEndpoints(filteredTargets...),
 		)
 		if err != nil {
 			return fmt.Errorf("SendInstallProposal return error: %s", err)
@@ -223,6 +237,18 @@ func (d *CommonSteps) doApproveCCByOrg(ccID, ccVersion, packageID string, sequen
 
 	resMgmtClient := d.BDDContext.ResMgmtClient(orgID, ADMIN)
 
+	// Check if the chaincode is already approved by this org
+	peers := d.OrgPeers(orgIDs, channelID)
+	if len(peers) == 0 {
+		return errors.Errorf("no peers found for orgs [%s]", orgIDs)
+	}
+
+	if err := d.queryApprovedCCByPeer(peers[0].PeerID, ccID, sequence, channelID); err == nil {
+		logger.Infof("... not approving chaincode [%s] since chaincode has already been approved by org [%s]", ccID, orgID)
+
+		return nil
+	}
+
 	logger.Infof("... approving chaincode [%s]", ccID)
 
 	_, err = resMgmtClient.LifecycleApproveCC(
@@ -368,6 +394,12 @@ func (d *CommonSteps) commitCCByOrg(ccID, ccVersion string, sequence int64, orgI
 func (d *CommonSteps) doCommitCCByOrg(ccID, ccVersion string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, initRequired bool) error {
 	if err := ResolveVarsInExpression(&ccID, &ccVersion, &orgIDs, &channelID, &ccPolicy, &collectionNames); err != nil {
 		return err
+	}
+
+	if err := d.queryCommittedCCByOrg(ccID, orgIDs, channelID); err == nil {
+		logger.Infof("... not committing chaincode [%s] since chaincode has already been committed", ccID)
+
+		return nil
 	}
 
 	logger.Infof("Preparing to commit chaincode [%s] version [%s] sequence [%d] on orgs [%s] on channel [%s] with CC policy [%s] and collectionPolicy [%s]", ccID, ccVersion, sequence, orgIDs, channelID, ccPolicy, collectionNames)
