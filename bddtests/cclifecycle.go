@@ -17,6 +17,7 @@ import (
 	fabApi "github.com/hyperledger/fabric-sdk-go/pkg/common/providers/fab"
 	lifecyclepkg "github.com/hyperledger/fabric-sdk-go/pkg/fab/ccpackager/lifecycle"
 	"github.com/pkg/errors"
+	"github.com/tidwall/gjson"
 )
 
 func (d *CommonSteps) lifecycleInstallCCToAllPeers(ccLabel, ccPath string) error {
@@ -397,9 +398,14 @@ func (d *CommonSteps) doCommitCCByOrg(ccID, ccVersion string, sequence int64, or
 	}
 
 	if err := d.queryCommittedCCByOrg(ccID, orgIDs, channelID); err == nil {
-		logger.Infof("... not committing chaincode [%s] since chaincode has already been committed", ccID)
-
-		return nil
+		for _, a := range gjson.Get(queryValue, "#.Version").Array() {
+			if a.Str == ccVersion {
+				logger.Infof("... not committing chaincode [%s:%s] since chaincode has already been committed", ccID, ccVersion)
+				return nil
+			}
+		}
+	} else {
+		logger.Infof("Got error querying for committed chaincode [%s]: %s", ccID, err)
 	}
 
 	logger.Infof("Preparing to commit chaincode [%s] version [%s] sequence [%d] on orgs [%s] on channel [%s] with CC policy [%s] and collectionPolicy [%s]", ccID, ccVersion, sequence, orgIDs, channelID, ccPolicy, collectionNames)
