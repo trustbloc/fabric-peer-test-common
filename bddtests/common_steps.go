@@ -376,8 +376,7 @@ func (d *CommonSteps) invokeCCWithArgs(ccID, channelID, clientOrgID string, targ
 		return channel.Response{}, fmt.Errorf("Failed to create new channel client: %s", err)
 	}
 
-	retryOpts := retry.DefaultOpts
-	retryOpts.RetryableCodes = retry.ChannelClientRetryableCodes
+	retryOpts := retry.DefaultChannelOpts
 
 	for _, code := range ccCodesForRetry {
 		addRetryCode(retryOpts.RetryableCodes, status.ChaincodeStatus, status.Code(code))
@@ -396,6 +395,9 @@ func (d *CommonSteps) invokeCCWithArgs(ccID, channelID, clientOrgID string, targ
 	if err != nil {
 		return channel.Response{}, fmt.Errorf("InvokeChaincode return error: %s", err)
 	}
+
+	queryValue = string(response.Payload)
+
 	return response, nil
 }
 
@@ -638,7 +640,7 @@ func (d *CommonSteps) QueryCCWithOpts(systemCC bool, ccID, channelID, clientOrgI
 		return "", errors.Wrap(err, "Failed to create new channel client")
 	}
 
-	retryOpts := retry.DefaultOpts
+	retryOpts := retry.DefaultChannelOpts
 	retryOpts.RetryableCodes = retry.ChannelClientRetryableCodes
 
 	for _, code := range ccCodesForRetry {
