@@ -138,7 +138,7 @@ func newPolicy(policyString string) (*fabricCommon.SignaturePolicyEnvelope, erro
 //
 func Resolve(vars map[string]string, arg string) (string, error) {
 	for {
-		logger.Infof("Resolving vars for %s", arg)
+		logger.Debugf("Resolving vars for %s", arg)
 
 		str, err := doResolve(vars, arg)
 		if err != nil {
