@@ -810,7 +810,7 @@ func (d *CommonSteps) jsonPathOfNumericResponseEquals(path, expected string) err
 
 	logger.Infof("Path [%s] of JSON %s resolves to %g", path, queryValue, r.Num)
 
-	strNum := strconv.FormatFloat(r.Num, 'g', -1, 64)
+	strNum := strconv.FormatFloat(r.Num, 'f', -1, 64)
 	if strNum == expected {
 		return nil
 	}
@@ -904,7 +904,7 @@ func (d *CommonSteps) jsonPathOfNumericResponseSavedToVar(path, varName string) 
 
 	logger.Infof("Path [%s] of JSON %s resolves to %g. Saving to variable [%s]", path, queryValue, r.Num, varName)
 
-	SetVar(varName, strconv.FormatFloat(r.Num, 'g', -1, 64))
+	SetVar(varName, strconv.FormatFloat(r.Num, 'f', -1, 64))
 
 	return nil
 }
