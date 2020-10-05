@@ -1903,7 +1903,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.approveCCByOrg)
 	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)" then the error response should contain "([^"]*)"$`, d.approveCCByOrgWithError)
 	s.Step(`^chaincode "([^"]*)", version "([^"]*)", sequence (\d+) is committed by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.commitCCByOrg)
-	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is checked for readiness by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.checkCommitReadinessByOrg)
+	s.Step(`^chaincode "([^"]*)", version "([^"]*)", sequence (\d+) is checked for readiness by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.checkCommitReadinessByOrg)
 	s.Step(`^peer "([^"]*)" is queried for installed chaincodes$`, d.queryInstalledCC)
 	s.Step(`^committed chaincode "([^"]*)" is queried by orgs "([^"]*)" on the "([^"]*)" channel$`, d.queryCommittedCCByOrg)
 	s.Step(`^all committed chaincodes are queried by orgs "([^"]*)" on the "([^"]*)" channel$`, d.queryCommittedCCsByOrg)

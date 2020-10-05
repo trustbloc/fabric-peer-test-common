@@ -327,12 +327,12 @@ func (d *CommonSteps) queryApprovedCCByPeer(peerID, ccID string, sequence int64,
 	return nil
 }
 
-func (d *CommonSteps) checkCommitReadinessByOrg(ccID, ccVersion, packageID string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string) error {
-	return d.doCheckCommitReadinessByOrg(ccID, ccVersion, packageID, sequence, orgIDs, channelID, ccPolicy, collectionNames, false)
+func (d *CommonSteps) checkCommitReadinessByOrg(ccID, ccVersion string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string) error {
+	return d.doCheckCommitReadinessByOrg(ccID, ccVersion, sequence, orgIDs, channelID, ccPolicy, collectionNames, false)
 }
 
-func (d *CommonSteps) doCheckCommitReadinessByOrg(ccID, ccVersion, packageID string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, initRequired bool) error {
-	if err := ResolveVarsInExpression(&ccID, &ccVersion, &packageID, &orgIDs, &channelID, &ccPolicy, &collectionNames); err != nil {
+func (d *CommonSteps) doCheckCommitReadinessByOrg(ccID, ccVersion string, sequence int64, orgIDs, channelID string, ccPolicy, collectionNames string, initRequired bool) error {
+	if err := ResolveVarsInExpression(&ccID, &ccVersion, &orgIDs, &channelID, &ccPolicy, &collectionNames); err != nil {
 		return err
 	}
 
@@ -362,7 +362,6 @@ func (d *CommonSteps) doCheckCommitReadinessByOrg(ccID, ccVersion, packageID str
 		resmgmt.LifecycleCheckCCCommitReadinessRequest{
 			Name:             ccID,
 			Version:          ccVersion,
-			PackageID:        packageID,
 			Sequence:         sequence,
 			SignaturePolicy:  chaincodePolicy,
 			CollectionConfig: collConfig,
