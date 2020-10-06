@@ -397,7 +397,7 @@ func (d *CommonSteps) doCommitCCByOrg(ccID, ccVersion string, sequence int64, or
 	}
 
 	if err := d.queryCommittedCCByOrg(ccID, orgIDs, channelID); err == nil {
-		for _, a := range gjson.Get(queryValue, "#.Version").Array() {
+		for _, a := range gjson.Get(queryValue, "#.version").Array() {
 			if a.Str == ccVersion {
 				logger.Infof("... not committing chaincode [%s:%s] since chaincode has already been committed", ccID, ccVersion)
 				return nil
