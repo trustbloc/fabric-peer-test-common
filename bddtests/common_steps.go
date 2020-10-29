@@ -722,10 +722,15 @@ func (d *CommonSteps) containsInQueryValue(ccID string, value string) error {
 }
 
 func (d *CommonSteps) equalQueryValue(ccID string, value string) error {
+	if err := ResolveVarsInExpression(&ccID, &value); err != nil {
+		return err
+	}
+
 	logger.Infof("Query value %s and tested value %s", queryValue, value)
 	if queryValue == value {
 		return nil
 	}
+
 	return fmt.Errorf("Query value(%s) doesn't equal expected value(%s)", queryValue, value)
 }
 
