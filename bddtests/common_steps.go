@@ -1557,7 +1557,7 @@ func (d *CommonSteps) valuesEqual(value1, value2 string) error {
 	}
 
 	if value1 == value2 {
-		logger.Infof("Values are equal [%s]", value1)
+		logger.Infof("Values are equal [%s]=[%s]", value1, value2)
 
 		return nil
 	}
@@ -1565,6 +1565,22 @@ func (d *CommonSteps) valuesEqual(value1, value2 string) error {
 	logger.Infof("Value1 [%s] does not equal value 2 [%s]", value1, value2)
 
 	return errors.Errorf("values [%s] and [%s] are not equal", value1, value2)
+}
+
+func (d *CommonSteps) valuesNotEqual(value1, value2 string) error {
+	if err := ResolveVarsInExpression(&value1, &value2); err != nil {
+		return err
+	}
+
+	if value1 != value2 {
+		logger.Infof("Values are not equal [%s]!=[%s]", value1, value2)
+
+		return nil
+	}
+
+	logger.Infof("Value1 [%s] equals value 2 [%s]", value1, value2)
+
+	return errors.Errorf("values [%s] and [%s] are equal", value1, value2)
 }
 
 func (d *CommonSteps) setVariable(varName, value string) error {
@@ -1881,6 +1897,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the response is saved to variable "([^"]*)"$`, d.setVariableFromCCResponse)
 	s.Step(`^variable "([^"]*)" is assigned the value "([^"]*)"$`, d.setVariable)
 	s.Step(`^variable "([^"]*)" is assigned the JSON value '([^']*)'$`, d.setJSONVariable)
+	s.Step(`^variable "([^"]*)" is assigned the uncanonicalized JSON value '([^']*)'$`, d.setVariable)
 	s.Step(`^the response equals "([^"]*)"$`, d.responseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the response equals "([^"]*)"$`, d.jsonPathOfCCResponseEquals)
 	s.Step(`^the JSON path "([^"]*)" of the numeric response equals "([^"]*)"$`, d.jsonPathOfNumericResponseEquals)
@@ -1903,6 +1920,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^the base64-encoded value "([^"]*)" is decoded and saved to variable "([^"]*)"$`, d.decodeValueFromBase64)
 	s.Step(`^the base64-encoded value "([^"]*)" is converted to base64URL-encoding and saved to variable "([^"]*)"$`, d.convertValueToBase64URLEncoding)
 	s.Step(`^the value "([^"]*)" equals "([^"]*)"$`, d.valuesEqual)
+	s.Step(`^the value "([^"]*)" does not equal "([^"]*)"$`, d.valuesNotEqual)
 	s.Step(`^the authorization bearer token for "([^"]*)" requests to path "([^"]*)" is set to "([^"]*)"$`, d.setAuthTokenForPath)
 	s.Step(`^chaincode "([^"]*)" is installed from path "([^"]*)" to all peers$`, d.lifecycleInstallCCToAllPeers)
 	s.Step(`^chaincode "([^"]*)", version "([^"]*)", package ID "([^"]*)", sequence (\d+) is approved by orgs "([^"]*)" on the "([^"]*)" channel with endorsement policy "([^"]*)" and collection policy "([^"]*)"$`, d.approveCCByOrg)
