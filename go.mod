@@ -8,7 +8,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper v1.1.1
 	github.com/stretchr/testify v1.5.1
-	github.com/tidwall/gjson v1.3.2
+	github.com/tidwall/gjson v1.9.3
 )
 
 go 1.15
